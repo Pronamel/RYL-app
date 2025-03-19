@@ -3,6 +3,7 @@ package com.example.ryl_app
 import android.graphics.Color.alpha
 import android.text.style.BackgroundColorSpan
 import android.widget.Space
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +19,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -34,8 +37,8 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
-
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 
 
 @Composable
@@ -46,42 +49,32 @@ fun LectureBuilderScreen(
     moduleName: String,
 
     BackToDay: () -> Unit,
-    ToLecture: (day: String, name: String, moduleName: String) -> Unit,
-
-
+    ToLecture: (day: String, week: String,  name: String, moduleName: String) -> Unit,
 ) {
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf("Lecture Name") }
+    var lectureTime by remember { mutableStateOf("00:00 - 00:00") } // Default value for purple box
+    var showDialog by remember { mutableStateOf(false) }
 
-    // Get the keyboard controller
     val keyboardController = LocalSoftwareKeyboardController.current
-    val context = LocalContext.current
-
-    // Get the focus manager
     val focusManager = LocalFocusManager.current
-
-    println("======================================================  == = = ==  ==  = == =")
-    println("Here Are The Stats:: " + day + "  " + week + "  " + moduleName + "  " )
-    println("======================================================  == = = ==  ==  = == =")
-
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
                 detectTapGestures(onTap = {
-                    // Clear the focus and hide the keyboard when tapping outside the TextField
-                    focusManager.clearFocus() // Clears focus from the TextField
-                    keyboardController?.hide() // Hides the keyboard
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
                 })
             }
             .background(color = Color.DarkGray)
-            .padding(horizontal = 16.dp) // Add padding around the column for general alignment
+            .padding(horizontal = 16.dp, vertical = 50.dp) // Add vertical padding to move content down
     ) {
+        // Module Name Text
         Text(
             text = "Module Name",
-            modifier = Modifier
-                .padding(top = 100.dp, start = 22.dp),
-            style = TextStyle(fontSize = 20.sp),
+            modifier = Modifier.padding(bottom = 10.dp),
+            style = TextStyle(fontSize = 35.sp),
             fontSize = 35.sp
         )
 
@@ -92,73 +85,87 @@ fun LectureBuilderScreen(
             label = { Text("Enter Here") },
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .padding(top = 8.dp)
-                .background(
-                    Color.DarkGray,
-                    RoundedCornerShape(12.dp)
-                ) // Set background to DarkGray with rounded corners
-                .border(
-                    4.dp,
-                    Color.Black,
-                    RoundedCornerShape(12.dp)
-                ) // Black border with rounded corners
-                .padding(4.dp) // Optional padding inside the text field to ensure text does not touch the edges
+                .background(Color.DarkGray, RoundedCornerShape(12.dp))
+                .border(4.dp, Color.Black, RoundedCornerShape(12.dp))
+                .padding(4.dp)
         )
 
-        // Text Color Selection Row
-        Row(
-            modifier = Modifier.padding(top = 70.dp, start = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Time Selection Button
+        Button(
+            onClick = { showDialog = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 15.dp, bottom = 15.dp)
+                .height(150.dp),
+            shape = RoundedCornerShape(22.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
         ) {
-            Image(
-                painter = painterResource(R.drawable.colorwheel),
-                contentDescription = "Image for color selection",
-                modifier = Modifier.fillMaxWidth(0.25f)
-            )
-            Box(
-                modifier = Modifier
-                    .padding(15.dp)
-                    .background(Color.White, shape = RoundedCornerShape(22.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                    .size(200.dp, 50.dp),
-                contentAlignment = Alignment.Center
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(R.drawable.colorwheel),
+                    contentDescription = "Color selection",
+                    modifier = Modifier.size(100.dp)
+                )
+                Spacer(modifier = Modifier.width(15.dp))
                 Text(
                     text = "Text Color",
-                    color = Color.Black,
-                    fontSize = 34.sp
+                    color = Color.White,
+                    fontSize = 30.sp
                 )
             }
         }
 
-        // CustomRectangle Box (Centered)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 100.dp) // Added space between the other components and the rectangle box
-                .wrapContentHeight(), // Ensures it takes up only necessary vertical space
-            contentAlignment = Alignment.Center
-        ) {
-            CustomRectangle(
-                text1 = "Lecture Name",
-                text2 = "00:00"
+        // Show Time Selection Dialog
+        if (showDialog) {
+            TimeSelectionDialog(
+                onDismiss = { showDialog = false },
+                onConfirm = { start, end ->
+                    lectureTime = "$start - $end"  // Update lectureTime with selected time
+                }
             )
         }
 
-        // Buttons column for confirming selection and going back
+        // CustomRectangle Box (Purple Box)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 50.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CustomRectangle(
+                text1 = text,      // Displays the Lecture Name
+                text2 = lectureTime  // Displays the selected time
+            )
+        }
+
+        // Buttons for confirming selection and going back
         Column(
             modifier = Modifier
-                .padding(top = 100.dp, start = 16.dp, end = 16.dp)
-                .fillMaxSize(),
+                .padding(top = 50.dp, start = 16.dp, end = 16.dp)
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Apply Changes Button
+
+            val context = LocalContext.current
+
+            // Confirm Selection Button
             Button(
-                onClick = { ToLecture(day, text , moduleName); findModuleWeekDayLectureAndCreateFolder(moduleName, week, day, text, "10:00") },
+                onClick = {
+                    val isConflict = checkLectureTimeConflict(moduleName, week, day, lectureTime)
+
+                    if (isConflict) {
+                        // Show popup for time conflict
+                        Toast.makeText(context, "Time conflict with another lecture!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        // No conflict, proceed with creating the lecture
+                        findModuleWeekDayLectureAndCreateFolder(moduleName, week, day, text, lectureTime)
+                        ToLecture(day, week, text, moduleName)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
-                    .padding(vertical = 8.dp), // Added vertical padding between buttons
+                    .padding(vertical = 8.dp),
                 shape = RoundedCornerShape(50.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Green.copy(alpha = 0.5f)
@@ -177,7 +184,7 @@ fun LectureBuilderScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
-                    .padding(vertical = 8.dp), // Added vertical padding between buttons
+                    .padding(vertical = 8.dp),
                 shape = RoundedCornerShape(50.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Red.copy(alpha = 0.5f)
@@ -192,6 +199,8 @@ fun LectureBuilderScreen(
         }
     }
 }
+
+
 
 @Composable
 fun CustomRectangle(
@@ -230,3 +239,96 @@ fun CustomRectangle(
         )
     }
 }
+
+
+@Composable
+fun TimeSelectionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    var startTime by remember { mutableStateOf("09:00") }
+    var endTime by remember { mutableStateOf("17:00") }
+
+    val timeIntervals = (0..47).map { index ->
+        String.format("%02d:%02d", index / 2, if (index % 2 == 0) 0 else 30)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.DarkGray.copy(alpha = 0.9f), // DarkGray with 0.7 alpha
+        title = {
+            Text(
+                text = "Select Lecture Time",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                TimeSelector(
+                    label = "Start Time",
+                    time = startTime,
+                    onTimeChange = { newTime ->
+                        if (timeIntervals.indexOf(newTime) < timeIntervals.indexOf(endTime)) {
+                            startTime = newTime
+                        }
+                    },
+                    timeIntervals = timeIntervals
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                TimeSelector(
+                    label = "End Time",
+                    time = endTime,
+                    onTimeChange = { newTime ->
+                        if (timeIntervals.indexOf(newTime) > timeIntervals.indexOf(startTime)) {
+                            endTime = newTime
+                        }
+                    },
+                    timeIntervals = timeIntervals
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(startTime, endTime); onDismiss() }) {
+                Text("Confirm Selection")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun TimeSelector(label: String, time: String, onTimeChange: (String) -> Unit, timeIntervals: List<String>) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            fontSize = 20.sp, // Larger font size
+            fontWeight = FontWeight.Bold, // Thicker text
+            color = Color.White
+        )
+        IconButton(onClick = {
+            val currentIndex = timeIntervals.indexOf(time)
+            if (currentIndex > 0) onTimeChange(timeIntervals[currentIndex - 1])
+        }) {
+            Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = "Increase Time", tint = Color.White)
+        }
+        Text(text = time, fontSize = 22.sp, color = Color.White, modifier = Modifier.padding(horizontal = 16.dp))
+        IconButton(onClick = {
+            val currentIndex = timeIntervals.indexOf(time)
+            if (currentIndex < timeIntervals.size - 1) onTimeChange(timeIntervals[currentIndex + 1])
+        }) {
+            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = "Decrease Time", tint = Color.White)
+        }
+    }
+}
+

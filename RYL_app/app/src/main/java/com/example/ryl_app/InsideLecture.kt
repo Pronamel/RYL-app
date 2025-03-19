@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 fun InsideALectureScreen(
 
     day: String,
+    week: String,
     name: String,
     moduleName: String,
     BackToLectureBuilder: () -> Unit

@@ -57,7 +57,7 @@ sealed class Screen(val route: String) {
     }
 
     object InsideLecture : Screen("inside_lecture/{day}/{name}/{moduleName}") {
-        fun createRoute(day: String, name: String, moduleName: String) = "inside_lecture/$day/$name/$moduleName"
+        fun createRoute(day: String, week: String, name: String, moduleName: String) = "inside_lecture/$day/$name/$moduleName"
     }
 }
 
@@ -130,8 +130,8 @@ fun AppNavHost(navController: NavHostController) {
                 ToLectureBuilder = { week, duration, moduleName, day ->
                     navController.navigate(Screen.LectureBuilder.createRoute(week, duration, moduleName, day))
                 },
-                ToLecture = { day, name, moduleName ->
-                    navController.navigate(Screen.InsideLecture.createRoute(day, name, moduleName))
+                ToLecture = { day, week, name, moduleName ->
+                    navController.navigate(Screen.InsideLecture.createRoute(day, week, name, moduleName))
                 }
             )
         }
@@ -148,19 +148,21 @@ fun AppNavHost(navController: NavHostController) {
                 name = name,
                 moduleName = moduleName,
                 BackToDay = { navController.popBackStack() },
-                ToLecture = { day, name, moduleName ->
-                    navController.navigate(Screen.InsideLecture.createRoute(day, name, moduleName))
+                ToLecture = { day, week,  name, moduleName ->
+                    navController.navigate(Screen.InsideLecture.createRoute(day, week,  name, moduleName))
                 }
             )
         }
 
         composable(Screen.InsideLecture.route) { backStackEntry ->
             val day = backStackEntry.arguments?.getString("day") ?: "DefaultDay"
+            val week = backStackEntry.arguments?.getString("week") ?: "DefaultWeek"
             val name = backStackEntry.arguments?.getString("name") ?: "DefaultName"
             val moduleName = backStackEntry.arguments?.getString("moduleName") ?: "DefaultModule"
 
             InsideALectureScreen(
                 day = day,
+                week = week,
                 name = name,
                 moduleName = moduleName,
                 BackToLectureBuilder = { navController.popBackStack() }

@@ -183,7 +183,7 @@ fun findModuleWeekDayLectureAndCreateFolder(
         val moduleName = moduleFolder.name
 
         // Check if the module name contains the query string (case insensitive)
-        if (moduleName.contains(moduleNameQuery, ignoreCase = true)) {
+        if (moduleName.equals(moduleNameQuery, ignoreCase = true)) {
             // Now, search for the specific week folder inside the module
             val weekFolder = File(moduleFolder, "week$weekNumber")
 
@@ -220,3 +220,103 @@ fun findModuleWeekDayLectureAndCreateFolder(
     println("No module containing '$moduleNameQuery' found.")
     return null
 }
+
+
+
+// fetches the lecture folder names inside of a day.
+fun getLecturesInDay(moduleName: String, week: String, day: String): Array<String> {
+    val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
+
+    if (!modulesDirectory.exists() || !modulesDirectory.isDirectory) {
+        println("Modules directory does not exist.")
+        return emptyArray()
+    }
+
+    // Locate the module folder
+    val moduleFolder = File(modulesDirectory, moduleName)
+    if (!moduleFolder.exists() || !moduleFolder.isDirectory) {
+        println("Module '$moduleName' not found.")
+        return emptyArray()
+    }
+
+    // Locate the week folder
+    val weekFolder = File(moduleFolder, "week$week")
+    if (!weekFolder.exists() || !weekFolder.isDirectory) {
+        println("Week '$week' not found in module '$moduleName'.")
+        return emptyArray()
+    }
+
+    // Locate the day folder
+    val dayFolder = File(weekFolder, day)
+    if (!dayFolder.exists() || !dayFolder.isDirectory) {
+        println("Day '$day' not found in week '$week' of module '$moduleName'.")
+        return emptyArray()
+    }
+
+    // Get all lecture folder names inside the day folder
+    val lectureNames = dayFolder.listFiles { file -> file.isDirectory }?.map { it.name }?.toTypedArray() ?: emptyArray()
+
+    return lectureNames
+}
+
+
+fun checkLectureTimeConflict(
+    moduleName: String,
+    weekNumber: String,
+    dayName: String,
+    time: String
+): Boolean {
+    val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
+
+    if (!modulesDirectory.exists() || !modulesDirectory.isDirectory) {
+        println("Modules directory does not exist.")
+        return false
+    }
+
+    val moduleFolder = File(modulesDirectory, moduleName)
+    if (!moduleFolder.exists() || !moduleFolder.isDirectory) {
+        println("Module '$moduleName' not found.")
+        return false
+    }
+
+    val weekFolder = File(moduleFolder, "week$weekNumber")
+    if (!weekFolder.exists() || !weekFolder.isDirectory) {
+        println("Week '$weekNumber' not found in module '$moduleName'.")
+        return false
+    }
+
+    val dayFolder = File(weekFolder, dayName)
+    if (!dayFolder.exists() || !dayFolder.isDirectory) {
+        println("Day '$dayName' not found in week '$weekNumber' of module '$moduleName'.")
+        return false
+    }
+
+    // Convert new lecture time to a comparable format
+    val (newStart, newEnd) = time.split(" - ").map { it.toMinutes() }
+
+    // Check if any existing lecture has overlapping time
+    dayFolder.listFiles { file -> file.isDirectory }?.forEach { existingLecture ->
+        val existingLectureTime = existingLecture.name.split("__").getOrNull(1)
+
+        if (existingLectureTime != null) {
+            val (existingStart, existingEnd) = existingLectureTime.split(" - ").map { it.toMinutes() }
+
+            // Check for time overlap
+            if (newStart < existingEnd && newEnd > existingStart) {
+                println("Time conflict: The new lecture ($time) overlaps with existing lecture ($existingLectureTime).")
+                return true
+            }
+        }
+    }
+
+    return false
+}
+
+// Extension function to convert "HH:mm" string to minutes
+fun String.toMinutes(): Int {
+    val (hours, minutes) = this.split(":").map { it.toInt() }
+    return hours * 60 + minutes
+}
+
+
+
