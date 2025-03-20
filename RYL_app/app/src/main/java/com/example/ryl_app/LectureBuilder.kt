@@ -44,12 +44,12 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun LectureBuilderScreen(
     day: String,
-    week: String,
+    week: Int,
     name: String,
     moduleName: String,
 
     BackToDay: () -> Unit,
-    ToLecture: (day: String, week: String,  name: String, moduleName: String) -> Unit,
+    ToLecture: (day: String, week: Int,  name: String, moduleName: String) -> Unit,
 ) {
     var text by remember { mutableStateOf("Lecture Name") }
     var lectureTime by remember { mutableStateOf("00:00 - 00:00") } // Default value for purple box
@@ -151,14 +151,14 @@ fun LectureBuilderScreen(
             // Confirm Selection Button
             Button(
                 onClick = {
-                    val isConflict = checkLectureTimeConflict(moduleName, week, day, lectureTime)
+                    val isConflict = checkLectureTimeConflict(moduleName, week.toString(), day, lectureTime)
 
                     if (isConflict) {
                         // Show popup for time conflict
                         Toast.makeText(context, "Time conflict with another lecture!", Toast.LENGTH_SHORT).show()
                     } else {
                         // No conflict, proceed with creating the lecture
-                        findModuleWeekDayLectureAndCreateFolder(moduleName, week, day, text, lectureTime)
+                        findModuleWeekDayLectureAndCreateFolder(moduleName, week.toString(), day, text, lectureTime)
                         ToLecture(day, week, text, moduleName)
                     }
                 },

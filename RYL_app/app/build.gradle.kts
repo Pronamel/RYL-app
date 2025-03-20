@@ -40,7 +40,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -56,6 +55,13 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.compose.testing)
     implementation(libs.androidx.animation.android)
+
+    // 🔹 Accompanist Permissions for handling permissions in Compose
+    implementation("com.google.accompanist:accompanist-permissions:0.31.5-beta")
+
+    // 🔹 Added Core SplashScreen to support enableEdgeToEdge()
+    implementation("androidx.core:core-splashscreen:1.2.0-alpha01")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,3 +70,4 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+

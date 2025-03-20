@@ -14,69 +14,105 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-//InsideALectureScreen
+import android.media.MediaRecorder
+import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import java.io.File
+
 @Composable
 fun InsideALectureScreen(
-
     day: String,
-    week: String,
+    week: Int,
     name: String,
     moduleName: String,
     BackToLectureBuilder: () -> Unit
-
 ) {
 
+    println("InsideALectureScreen " + "Week received: $week")  // Log the week value
+
+    val context = LocalContext.current  // Get the context internally
+    var isRecording by remember { mutableStateOf(false) }
+    var recorder: MediaRecorder? by remember { mutableStateOf(null) }
+    val outputFile = File(context.filesDir, "lecture_recording.mp3")  // Store file internally
+
+    fun startRecording() {
+        recorder = MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setOutputFile(outputFile.absolutePath)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            prepare()
+            start()
+        }
+        isRecording = true
+    }
+
+    fun stopRecording() {
+        recorder?.apply {
+            stop()
+            release()
+        }
+        recorder = null
+        isRecording = false
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.DarkGray) // Set background color to DarkGray
+            .background(Color.DarkGray)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween // Evenly distribute elements
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Title Box
-        Column(modifier = Modifier.padding(top = 60.dp)){
+        Column(modifier = Modifier.padding(top = 60.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
-                    .border(6.dp, Color.Blue, RoundedCornerShape(12.dp)) // Rounded border
-                    .background(Color.White, RoundedCornerShape(12.dp)) // Rounded background
+                    .border(6.dp, Color.Blue, RoundedCornerShape(12.dp))
+                    .background(Color.White, RoundedCornerShape(12.dp))
                     .padding(top = 10.dp, bottom = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Lecture Name",
-                    fontSize = 28.sp, // Increased text size
+                    text = name + day + "$week" + moduleName,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
             }
         }
 
-        // Regular Text
         Text(
-            text = "00:00",
-            fontSize = 50.sp, // Larger text size
+            text = if (isRecording) "Recording..." else "00:00",
+            fontSize = 50.sp,
             color = Color.Black,
             modifier = Modifier.padding(30.dp)
         )
 
-        Spacer(modifier = Modifier.weight(0.5f)) // Pushes content to distribute evenly
+        Spacer(modifier = Modifier.weight(0.5f))
 
-        // **Red Button**
-        Column(modifier = Modifier.padding(bottom = 25.dp)){
+        Column(modifier = Modifier.padding(bottom = 25.dp)) {
             Box(
                 modifier = Modifier
                     .width(180.dp)
                     .height(125.dp)
                     .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
-                    .background(Color.Red, RoundedCornerShape(12.dp))
-                    .clickable { /* Handle click */ },
+                    .background(if (isRecording) Color.Gray else Color.Red, RoundedCornerShape(12.dp))
+                    .clickable {
+                        if (isRecording) stopRecording() else startRecording()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Record",
+                    text = if (isRecording) "Stop" else "Record",
                     color = Color.Black,
                     fontSize = 35.sp,
                     fontWeight = FontWeight.Bold
@@ -84,51 +120,9 @@ fun InsideALectureScreen(
             }
         }
 
-        // ** Green Button**
-        Column (modifier = Modifier.padding(bottom = 25.dp, top = 25.dp)){
-            Box(
-                modifier = Modifier
-                    .width(130.dp)
-                    .height(75.dp)
-                    .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
-                    .background(Color.Green, RoundedCornerShape(12.dp))
-                    .clickable { /* Handle click */ },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Listen",
-                    color = Color.Black,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+        Spacer(modifier = Modifier.weight(1f))
 
-        // **Turquoise Button**
-        Column(modifier = Modifier.padding(bottom = 25.dp, top = 15.dp)) {
-            Box(
-                modifier = Modifier
-                    .width(130.dp)
-                    .height(60.dp)
-                    .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
-                    .background(Color.Cyan, RoundedCornerShape(12.dp))
-                    .clickable { /* Handle click */ }
-                    .padding(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Email",
-                    color = Color.Black,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f)) // Pushes purple button to the bottom
-
-        // **Purple Button**
-        Column (modifier = Modifier.padding(bottom = 30.dp)){
+        Column(modifier = Modifier.padding(bottom = 30.dp)) {
             Box(
                 modifier = Modifier
                     .width(130.dp)

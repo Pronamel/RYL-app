@@ -1,6 +1,7 @@
 package com.example.ryl_app
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,16 +31,21 @@ fun InsideADayScreen(
     moduleName: String,
     BackToModule: () -> Unit,
     ToLectureBuilder: (week: Int, duration: Int, moduleName: String, day: String) -> Unit,
-    ToLecture: (day: String, week: String, name: String, moduleName: String) -> Unit
+    ToLecture: (day: String, week: Int, name: String, moduleName: String) -> Unit
 
 ) {
+
+
+
+
     var weekTextWidth by remember { mutableStateOf(0f) }
     var dayTextWidth by remember { mutableStateOf(0f) }
     val fontSize = 25.sp
     val density = LocalDensity.current.density
 
-    val folderNames by remember { mutableStateOf(getLecturesInDay(moduleName, week.toString(), day).toList()) }
+    var capturedWeek by remember { mutableStateOf("") }
 
+    val folderNames by remember { mutableStateOf(getLecturesInDay(moduleName, week.toString(), day).toList()) }
     val processedNames = processFolderNames(folderNames)
 
     Column(
@@ -109,6 +115,9 @@ fun InsideADayScreen(
             }
         }
 
+
+        capturedWeek = "$week"
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -120,7 +129,10 @@ fun InsideADayScreen(
                 CustomRectangleButton(
                     text1 = text1,
                     text2 = text2,
-                    onClick = { ToLecture(day, week.toString(), text1, moduleName) }
+                    onClick = {
+                        Log.d("InsideADayScreen", "Clicked CustomRectangleButton with week: $week")
+                        ToLecture(day, week, text1 + text2, moduleName)
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -130,6 +142,7 @@ fun InsideADayScreen(
                 AddLectureButton(onClick = { ToLectureBuilder(week, duration, moduleName, day) })
             }
         }
+
 
         Column(
             modifier = Modifier
@@ -196,6 +209,8 @@ fun CustomRectangleButton(
     }
 }
 
+
+
 @Composable
 fun AddLectureButton(onClick: () -> Unit) {
     Button(
@@ -214,3 +229,5 @@ fun processFolderNames(folders: List<String>): List<Pair<String, String>> {
         if (parts.size == 2) parts[0] to parts[1] else folder to ""
     }
 }
+
+

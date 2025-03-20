@@ -1,5 +1,6 @@
 package com.example.ryl_app
 
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -8,14 +9,20 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
+import android.Manifest
+import androidx.activity.result.contract.ActivityResultContracts
+
 
 class MainActivity : ComponentActivity() {
+
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,9 +30,30 @@ class MainActivity : ComponentActivity() {
 
         // Call the function to create the directory
         val rylDirectory = createRYLDirectory(applicationContext)
-
-        // Optionally, log the directory path for verification
         Log.d("RYL_Directory", "Directory created at: ${rylDirectory.absolutePath}")
+
+        // Register the permission launcher
+        val requestPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted: Boolean ->
+            if (isGranted) {
+                Log.d("Permission", "Microphone permission granted.")
+            } else {
+                Log.d("Permission", "Microphone permission denied.")
+                // Optionally, show a dialog explaining why the permission is needed.
+            }
+        }
+
+        // Check and request microphone permission
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            Log.d("Permission", "Microphone permission already granted.")
+        }
 
         setContent {
             MyApp()
@@ -33,12 +61,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+
+
+
+
+
+
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @Composable
 fun MyApp() {
     val navController = rememberNavController()
     AppNavHost(navController = navController)
 }
+//=====================================================================================
+
+
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -56,8 +94,8 @@ sealed class Screen(val route: String) {
         fun createRoute(week: Int, duration: Int, moduleName: String, day: String) = "lecture_builder/$week/$duration/$moduleName/$day"
     }
 
-    object InsideLecture : Screen("inside_lecture/{day}/{name}/{moduleName}") {
-        fun createRoute(day: String, week: String, name: String, moduleName: String) = "inside_lecture/$day/$name/$moduleName"
+    object InsideLecture : Screen("inside_lecture/{day}/{week}/{name}/{moduleName}") {
+        fun createRoute(day: String, week: Int, name: String, moduleName: String) = "inside_lecture/$day/$week/$name/$moduleName"
     }
 }
 
@@ -139,7 +177,7 @@ fun AppNavHost(navController: NavHostController) {
         composable(Screen.LectureBuilder.route) { backStackEntry ->
             val day = backStackEntry.arguments?.getString("day") ?: "DefaultDay"
             val name = backStackEntry.arguments?.getString("name") ?: "DefaultName"
-            val week = backStackEntry.arguments?.getString("week") ?: "unknownWeek"  // Corrected to "week"
+            val week = backStackEntry.arguments?.getInt("week") ?: 1  // Changed to getInt()
             val moduleName = backStackEntry.arguments?.getString("moduleName") ?: "DefaultModule"
 
             LectureBuilderScreen(
@@ -154,9 +192,17 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-        composable(Screen.InsideLecture.route) { backStackEntry ->
+        composable(
+            route = Screen.InsideLecture.route,
+            arguments = listOf(
+                navArgument("day") { type = NavType.StringType },
+                navArgument("week") { type = NavType.IntType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("moduleName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
             val day = backStackEntry.arguments?.getString("day") ?: "DefaultDay"
-            val week = backStackEntry.arguments?.getString("week") ?: "DefaultWeek"
+            val week = backStackEntry.arguments?.getInt("week") ?: 1  // Changed to getInt()
             val name = backStackEntry.arguments?.getString("name") ?: "DefaultName"
             val moduleName = backStackEntry.arguments?.getString("moduleName") ?: "DefaultModule"
 
