@@ -30,10 +30,12 @@ fun InsideADayScreen(
     day: String,
     moduleName: String,
     BackToModule: () -> Unit,
-    ToLectureBuilder: (week: Int, duration: Int, moduleName: String, day: String) -> Unit,
-    ToLecture: (day: String, week: Int, name: String, moduleName: String) -> Unit
-
-) {
+    // Expecting week first, then lecture name, moduleName, and day
+    ToLectureBuilder: (week: Int, name: String, moduleName: String, day: String) -> Unit,
+    // For navigating directly to a lecture
+    ToLecture: (name: String, week: Int, moduleName: String, day: String) -> Unit
+)
+ {
 
 
 
@@ -131,7 +133,7 @@ fun InsideADayScreen(
                     text2 = text2,
                     onClick = {
                         Log.d("InsideADayScreen", "Clicked CustomRectangleButton with week: $week")
-                        ToLecture(day, week, text1 + text2, moduleName)
+                        ToLecture(day, week,text1 + text2, "Z" + moduleName)
                     }
                 )
 
@@ -139,7 +141,7 @@ fun InsideADayScreen(
             }
 
             item {
-                AddLectureButton(onClick = { ToLectureBuilder(week, duration, moduleName, day) })
+                AddLectureButton(onClick = { ToLectureBuilder(week, "nothingyet", moduleName, day) })
             }
         }
 

@@ -90,10 +90,11 @@ sealed class Screen(val route: String) {
         fun createRoute(duration: Int, week: Int, day: String, moduleName: String) = "inside_day/$duration/$week/$day/$moduleName"
     }
 
-    object LectureBuilder : Screen("lecture_builder/{week}/{duration}/{moduleName}/{day}") {
-        fun createRoute(week: Int, duration: Int, moduleName: String, day: String) = "lecture_builder/$week/$duration/$moduleName/$day"
+    object LectureBuilder : Screen("lecture_builder/{week}/{name}/{moduleName}/{day}") {
+        fun createRoute(week: Int, name: String, moduleName: String, day: String): String {
+            return "lecture_builder/$week/$name/$moduleName/$day"
+        }
     }
-
     object InsideLecture : Screen("inside_lecture/{day}/{week}/{name}/{moduleName}") {
         fun createRoute(day: String, week: Int, name: String, moduleName: String) = "inside_lecture/$day/$week/$name/$moduleName"
     }
@@ -147,13 +148,13 @@ fun AppNavHost(navController: NavHostController) {
             route = Screen.InsideDay.route,
             arguments = listOf(
                 navArgument("duration") { type = NavType.StringType },
-                navArgument("week") { type = NavType.IntType },  // Changed to IntType
+                navArgument("week") { type = NavType.IntType },
                 navArgument("day") { type = NavType.StringType },
                 navArgument("moduleName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val duration = backStackEntry.arguments?.getString("duration")?.toIntOrNull() ?: 60
-            val week = backStackEntry.arguments?.getInt("week") ?: 1  // Changed to getInt()
+            val week = backStackEntry.arguments?.getInt("week") ?: 1
             val day = backStackEntry.arguments?.getString("day") ?: "DefaultDay"
             val moduleName = backStackEntry.arguments?.getString("moduleName") ?: "DefaultModule"
 
@@ -165,8 +166,9 @@ fun AppNavHost(navController: NavHostController) {
                 day = day,
                 moduleName = moduleName,
                 BackToModule = { navController.popBackStack() },
-                ToLectureBuilder = { week, duration, moduleName, day ->
-                    navController.navigate(Screen.LectureBuilder.createRoute(week, duration, moduleName, day))
+                ToLectureBuilder = { week, name, moduleName, day ->
+                    // Notice the swap: week comes first, then name, moduleName, day
+                    navController.navigate(Screen.LectureBuilder.createRoute(week, name, moduleName, day))
                 },
                 ToLecture = { day, week, name, moduleName ->
                     navController.navigate(Screen.InsideLecture.createRoute(day, week, name, moduleName))
@@ -174,11 +176,20 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-        composable(Screen.LectureBuilder.route) { backStackEntry ->
-            val day = backStackEntry.arguments?.getString("day") ?: "DefaultDay"
+
+        composable(
+            route = Screen.LectureBuilder.route,
+            arguments = listOf(
+                navArgument("week") { type = NavType.IntType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("moduleName") { type = NavType.StringType },
+                navArgument("day") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val week = backStackEntry.arguments?.getInt("week") ?: 1
             val name = backStackEntry.arguments?.getString("name") ?: "DefaultName"
-            val week = backStackEntry.arguments?.getInt("week") ?: 1  // Changed to getInt()
             val moduleName = backStackEntry.arguments?.getString("moduleName") ?: "DefaultModule"
+            val day = backStackEntry.arguments?.getString("day") ?: "DefaultDay"
 
             LectureBuilderScreen(
                 day = day,
@@ -186,11 +197,12 @@ fun AppNavHost(navController: NavHostController) {
                 name = name,
                 moduleName = moduleName,
                 BackToDay = { navController.popBackStack() },
-                ToLecture = { day, week,  name, moduleName ->
-                    navController.navigate(Screen.InsideLecture.createRoute(day, week,  name, moduleName))
+                ToLecture = { day, week, name, moduleName ->
+                    navController.navigate(Screen.InsideLecture.createRoute(day, week, name, moduleName))
                 }
             )
         }
+
 
         composable(
             route = Screen.InsideLecture.route,
@@ -211,7 +223,8 @@ fun AppNavHost(navController: NavHostController) {
                 week = week,
                 name = name,
                 moduleName = moduleName,
-                BackToLectureBuilder = { navController.popBackStack() }
+                BackToLectureBuilder = { navController.popBackStack(); navController.popBackStack() },
+                BackToInsideADay = { navController.popBackStack(); }
             )
         }
     }

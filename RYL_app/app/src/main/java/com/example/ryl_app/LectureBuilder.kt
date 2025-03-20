@@ -159,7 +159,7 @@ fun LectureBuilderScreen(
                     } else {
                         // No conflict, proceed with creating the lecture
                         findModuleWeekDayLectureAndCreateFolder(moduleName, week.toString(), day, text, lectureTime)
-                        ToLecture(day, week, text, moduleName)
+                        ToLecture(day, week, text, "L" + moduleName)
                     }
                 },
                 modifier = Modifier

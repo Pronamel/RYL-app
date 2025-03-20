@@ -33,15 +33,22 @@ fun InsideALectureScreen(
     week: Int,
     name: String,
     moduleName: String,
-    BackToLectureBuilder: () -> Unit
+    BackToLectureBuilder: () -> Unit,
+    BackToInsideADay: () -> Unit,
 ) {
 
-    println("InsideALectureScreen " + "Week received: $week")  // Log the week value
+    println("InsideALectureScreen Week received: $week")  // Log the week value
 
-    val context = LocalContext.current  // Get the context internally
+    // Process the passed-in moduleName to get a Boolean and an updated module name.
+    val (isL, updatedModuleName) = processModuleName(moduleName)
+    // Now use updatedModuleName in place of the original moduleName in your UI.
+    println("isL: $isL, updatedModuleName: $updatedModuleName")
+
+    // The rest of your code using updatedModuleName...
+    val context = LocalContext.current
     var isRecording by remember { mutableStateOf(false) }
     var recorder: MediaRecorder? by remember { mutableStateOf(null) }
-    val outputFile = File(context.filesDir, "lecture_recording.mp3")  // Store file internally
+    val outputFile = File(context.filesDir, "lecture_recording.mp3")
 
     fun startRecording() {
         recorder = MediaRecorder().apply {
@@ -81,8 +88,9 @@ fun InsideALectureScreen(
                     .padding(top = 10.dp, bottom = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
+                // Use updatedModuleName instead of moduleName.
                 Text(
-                    text = name + day + "$week" + moduleName,
+                    text = "$name $day $week $updatedModuleName",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -129,17 +137,35 @@ fun InsideALectureScreen(
                     .height(90.dp)
                     .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
                     .background(Color(0xFF800080), RoundedCornerShape(12.dp))
-                    .clickable { BackToLectureBuilder() },
+                    .clickable { if(isL == true){
+                        BackToLectureBuilder()
+                    }else{
+                        BackToInsideADay()
+                    }
+
+                               },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Weeks",
+                    text = "Days",
                     color = Color.Black,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
+    }
+}
+
+
+fun processModuleName(moduleName: String): Pair<Boolean, String> {
+    if (moduleName.isEmpty()) return Pair(false, moduleName)
+    // Get the first character in uppercase.
+    val firstChar = moduleName[0].uppercaseChar()
+    return when (firstChar) {
+        'L' -> Pair(true, moduleName.substring(1))  // Return true and drop the first char.
+        'Z' -> Pair(false, moduleName.substring(1)) // Return false and drop the first char.
+        else -> Pair(false, moduleName)             // If neither, leave the module name as is.
     }
 }
 
