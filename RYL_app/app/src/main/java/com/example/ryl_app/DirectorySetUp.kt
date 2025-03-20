@@ -7,18 +7,22 @@ import androidx.compose.ui.graphics.Color
 
 
 
-// Utility function to create the directory
 fun createRYLDirectory(context: Context): File {
     val rootDir = context.filesDir  // App's private internal storage
-    val directory = File(rootDir, "RYL_Directory")
-
-    // Check if the directory exists; if not, create it
-    if (!directory.exists()) {
-        directory.mkdirs()  // Creates the directory if it doesn't exist
+    val rylDirectory = File(rootDir, "RYL_Directory")
+    if (!rylDirectory.exists()) {
+        rylDirectory.mkdirs()  // Create RYL_Directory if it doesn't exist
     }
 
-    return directory
+    // Create the Modules folder inside RYL_Directory
+    val modulesDirectory = File(rylDirectory, "Modules")
+    if (!modulesDirectory.exists()) {
+        modulesDirectory.mkdirs()  // Create Modules folder if it doesn't exist
+    }
+
+    return rylDirectory
 }
+
 
 
 
