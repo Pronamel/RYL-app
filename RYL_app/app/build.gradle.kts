@@ -56,6 +56,10 @@ dependencies {
     implementation(libs.androidx.compose.testing)
     implementation(libs.androidx.animation.android)
 
+    //icons
+    implementation("androidx.compose.material:material-icons-extended:1.4.3")
+
+
     // 🔹 Accompanist Permissions for handling permissions in Compose
     implementation("com.google.accompanist:accompanist-permissions:0.31.5-beta")
 
