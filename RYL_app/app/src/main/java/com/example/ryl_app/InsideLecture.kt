@@ -1,5 +1,7 @@
 package com.example.ryl_app
 
+import android.content.Context
+import android.content.Intent
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaMuxer
@@ -14,11 +16,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,16 +35,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.ByteBuffer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-
 
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
@@ -50,42 +52,38 @@ fun InsideALectureScreen(
     BackToInsideADay: () -> Unit,
 ) {
     println("InsideALectureScreen Week received: $week")
-
-    // Process the passed-in moduleName.
     val (isL, updatedModuleName) = processModuleName(moduleName)
     println("isL: $isL, updatedModuleName: $updatedModuleName")
-
     val context = LocalContext.current
 
-    // States for recording.
+    // Recording states.
     var isRecording by remember { mutableStateOf(false) }
     var recorder: MediaRecorder? by remember { mutableStateOf(null) }
+    var recordingTimeMs by remember { mutableStateOf(0L) }
 
-    // A counter and list for segment files.
+    // Segment file management.
     var recordingIndex by remember { mutableStateOf(1) }
     val recordedSegments = remember { mutableStateListOf<File>() }
 
-    // Build your custom folder structure.
+    // Build folder structure.
     val baseDirectory = File(context.filesDir, "RYL_Directory/Modules")
     println(baseDirectory)
-    // Directory structure: /<updatedModuleName>/week<week>/<day>/<name>
     val lectureDirectory = File(baseDirectory, "$updatedModuleName/week$week/$day/$name")
     if (!lectureDirectory.exists()) {
         lectureDirectory.mkdirs()
     }
     println(lectureDirectory)
 
-    // The file for the merged recording.
+    // File for merged recording.
     val mergedOutputFile = File(lectureDirectory, "merged_recording.m4a")
 
-    // Load any existing segment files from disk into recordedSegments.
+    // Load existing segment files.
     LaunchedEffect(lectureDirectory) {
         val segments = lectureDirectory.listFiles { file ->
             file.name.startsWith("recording_") && file.name.endsWith(".m4a")
         }?.toList() ?: emptyList()
         recordedSegments.clear()
         recordedSegments.addAll(segments)
-        // Update recordingIndex to one more than the max found.
         if (segments.isNotEmpty()) {
             val maxIndex = segments.mapNotNull { file ->
                 file.name.removePrefix("recording_").removeSuffix(".m4a").toIntOrNull()
@@ -94,7 +92,6 @@ fun InsideALectureScreen(
         }
     }
 
-    // Returns a new segment file.
     fun getNextSegmentFile(): File {
         return File(lectureDirectory, "recording_${recordingIndex++}.m4a")
     }
@@ -110,6 +107,7 @@ fun InsideALectureScreen(
             start()
         }
         isRecording = true
+        recordingTimeMs = 0L
     }
 
     fun stopRecording() {
@@ -123,6 +121,21 @@ fun InsideALectureScreen(
         recordedSegments.add(segmentFile)
     }
 
+    // Update elapsed time.
+    LaunchedEffect(isRecording) {
+        while (isRecording) {
+            delay(1000)
+            recordingTimeMs += 1000
+        }
+    }
+
+    fun formatRecordingTime(ms: Long): String {
+        val totalSeconds = (ms / 1000).toInt()
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%02d:%02d", minutes, seconds)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -131,7 +144,7 @@ fun InsideALectureScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Lecture header.
+        // Header.
         Column(modifier = Modifier.padding(top = 60.dp)) {
             Box(
                 modifier = Modifier
@@ -149,8 +162,9 @@ fun InsideALectureScreen(
                 )
             }
         }
+        // Elapsed time.
         Text(
-            text = if (isRecording) "Recording..." else "00:00",
+            text = if (isRecording) formatRecordingTime(recordingTimeMs) else "00:00",
             fontSize = 50.sp,
             color = Color.Black,
             modifier = Modifier.padding(30.dp)
@@ -164,9 +178,7 @@ fun InsideALectureScreen(
                     .height(125.dp)
                     .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
                     .background(if (isRecording) Color.Gray else Color.Red, RoundedCornerShape(12.dp))
-                    .clickable {
-                        if (isRecording) stopRecording() else startRecording()
-                    },
+                    .clickable { if (isRecording) stopRecording() else startRecording() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -177,12 +189,19 @@ fun InsideALectureScreen(
                 )
             }
         }
-        // Playback Button becomes a popup dialog.
-        AudioPlaybackButton(
-            recordedSegments = recordedSegments,
-            mergedOutputFile = mergedOutputFile,
-            isRecording = isRecording
-        )
+        // Vertical stack for Listen and Email buttons.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AudioPlaybackButton(
+                recordedSegments = recordedSegments,
+                mergedOutputFile = mergedOutputFile,
+                isRecording = isRecording
+            )
+            EmailButton(mergedOutputFile = mergedOutputFile)
+        }
         Spacer(modifier = Modifier.weight(1f))
         // Days Button.
         Column(modifier = Modifier.padding(bottom = 30.dp)) {
@@ -192,13 +211,7 @@ fun InsideALectureScreen(
                     .height(90.dp)
                     .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
                     .background(Color(0xFF800080), RoundedCornerShape(12.dp))
-                    .clickable {
-                        if (isL) {
-                            BackToLectureBuilder()
-                        } else {
-                            BackToInsideADay()
-                        }
-                    },
+                    .clickable { if (isL) BackToLectureBuilder() else BackToInsideADay() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -221,7 +234,6 @@ fun AudioPlaybackButton(
 ) {
     val context = LocalContext.current
     var showPlayerDialog by remember { mutableStateOf(false) }
-
     Box(
         modifier = Modifier
             .width(180.dp)
@@ -244,12 +256,34 @@ fun AudioPlaybackButton(
             fontWeight = FontWeight.Bold
         )
     }
-
     if (showPlayerDialog) {
         AudioPlayerDialog(
             recordedSegments = recordedSegments,
             mergedOutputFile = mergedOutputFile,
             onDismiss = { showPlayerDialog = false }
+        )
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.N)
+@Composable
+fun EmailButton(mergedOutputFile: File) {
+    val context = LocalContext.current
+    // Styled like the other buttons.
+    Box(
+        modifier = Modifier
+            .width(180.dp)
+            .height(125.dp)
+            .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
+            .background(Color(0xFFADD8E6), RoundedCornerShape(12.dp))
+            .clickable { sendEmail(context, mergedOutputFile) },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Email",
+            color = Color.Black,
+            fontSize = 35.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -268,8 +302,8 @@ fun AudioPlayerDialog(
     var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
     var currentPositionMs by remember { mutableStateOf(0f) }
     var durationMs by remember { mutableStateOf(1f) } // default to avoid divide-by-zero
+    var isDragging by remember { mutableStateOf(false) }
 
-    // Format milliseconds as "mm:ss"
     fun formatMs(ms: Int): String {
         val totalSeconds = ms / 1000
         val minutes = totalSeconds / 60
@@ -277,7 +311,6 @@ fun AudioPlayerDialog(
         return String.format("%02d:%02d", minutes, seconds)
     }
 
-    // Helper to merge segments if necessary and then prepare the MediaPlayer.
     fun prepareAudio(onReady: (File) -> Unit) {
         if (recordedSegments.isNotEmpty()) {
             isMerging = true
@@ -291,7 +324,6 @@ fun AudioPlayerDialog(
         }
     }
 
-    // Prepare the MediaPlayer when the dialog appears.
     LaunchedEffect(Unit) {
         prepareAudio { audioFile ->
             val fis = java.io.FileInputStream(audioFile)
@@ -304,7 +336,6 @@ fun AudioPlayerDialog(
         }
     }
 
-    // Function to toggle play/pause.
     fun togglePlayPause() {
         mediaPlayer?.let { player ->
             if (isPlaying) {
@@ -317,13 +348,11 @@ fun AudioPlayerDialog(
         }
     }
 
-    // Seek to a new position.
     fun seekToMs(ms: Int) {
         mediaPlayer?.seekTo(ms)
         currentPositionMs = ms.toFloat()
     }
 
-    // Jump ±30 seconds.
     fun jump(deltaMs: Int) {
         mediaPlayer?.let { player ->
             val newMs = (player.currentPosition + deltaMs).coerceIn(0, player.duration)
@@ -332,17 +361,17 @@ fun AudioPlayerDialog(
         }
     }
 
-    // Update slider while playing.
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
-            mediaPlayer?.let { player ->
-                currentPositionMs = player.currentPosition.toFloat()
+            if (!isDragging) {
+                mediaPlayer?.let { player ->
+                    currentPositionMs = player.currentPosition.toFloat()
+                }
             }
             delay(300)
         }
     }
 
-    // Use a full-screen Dialog with controlled width and height.
     Dialog(
         onDismissRequest = {
             mediaPlayer?.release()
@@ -353,14 +382,14 @@ fun AudioPlayerDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .height(300.dp)
+                .height(350.dp)
                 .background(Color.DarkGray.copy(alpha = 0.95f), RoundedCornerShape(16.dp))
                 .padding(16.dp)
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceEvenly
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "Audio Player",
@@ -377,9 +406,11 @@ fun AudioPlayerDialog(
                     value = currentPositionMs,
                     onValueChange = { newValue ->
                         currentPositionMs = newValue
+                        isDragging = true
                     },
                     onValueChangeFinished = {
                         seekToMs(currentPositionMs.toInt())
+                        isDragging = false
                     },
                     valueRange = 0f..durationMs,
                     modifier = Modifier.fillMaxWidth()
@@ -434,7 +465,6 @@ fun AudioPlayerDialog(
                         )
                     }
                 }
-                // New text label underneath the buttons.
                 Text(
                     text = "Each skip is worth 30s",
                     fontSize = 14.sp,
@@ -445,20 +475,34 @@ fun AudioPlayerDialog(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.N)
+fun sendEmail(context: Context, file: File) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.provider",
+        file
+    )
+    val emailIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "audio/m4a"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, "Combined Audio Recording")
+        putExtra(Intent.EXTRA_TEXT, "Please find the attached audio recording.")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(emailIntent, "Send email using:"))
+}
 
 @RequiresApi(Build.VERSION_CODES.N)
 fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
     val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
     var audioTrackIndex = -1
     var timeOffsetUs = 0L
-    val buffer = ByteBuffer.allocate(1024 * 1024) // 1MB buffer
+    val buffer = ByteBuffer.allocate(1024 * 1024)
     val bufferInfo = MediaCodec.BufferInfo()
 
     segmentFiles.forEach { file ->
         val extractor = MediaExtractor()
         extractor.setDataSource(file.absolutePath)
-
-        // Find the first audio track.
         var trackIndex = -1
         for (i in 0 until extractor.trackCount) {
             val format = extractor.getTrackFormat(i)
@@ -473,17 +517,13 @@ fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
         }
         extractor.selectTrack(trackIndex)
         val format = extractor.getTrackFormat(trackIndex)
-
-        // On the first file, add the track to the muxer and start it.
         if (audioTrackIndex == -1) {
             audioTrackIndex = muxer.addTrack(format)
             muxer.start()
         }
-
-        // Read samples from the extractor and write them into the muxer.
         while (true) {
             val sampleSize = extractor.readSampleData(buffer, 0)
-            if (sampleSize < 0) break  // End of stream.
+            if (sampleSize < 0) break
             bufferInfo.size = sampleSize
             bufferInfo.offset = 0
             bufferInfo.presentationTimeUs = extractor.sampleTime + timeOffsetUs
@@ -495,7 +535,6 @@ fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
             muxer.writeSampleData(audioTrackIndex, buffer, bufferInfo)
             extractor.advance()
         }
-        // Increase time offset by this segment's duration.
         val durationUs = format.getLong(MediaFormat.KEY_DURATION)
         timeOffsetUs += durationUs
         extractor.release()
