@@ -4,97 +4,84 @@ import android.content.Context
 import java.io.File
 import androidx.compose.ui.graphics.Color
 
-
-
-
+// Creates the main "RYL_Directory" in the app's private storage and ensures that a "Modules" folder exists within it.
 fun createRYLDirectory(context: Context): File {
-    val rootDir = context.filesDir  // App's private internal storage
+    val rootDir = context.filesDir  // Get the app's internal storage directory.
     val rylDirectory = File(rootDir, "RYL_Directory")
     if (!rylDirectory.exists()) {
-        rylDirectory.mkdirs()  // Create RYL_Directory if it doesn't exist
+        rylDirectory.mkdirs()  // Create "RYL_Directory" if it does not exist.
     }
-
-    // Create the Modules folder inside RYL_Directory
+    // Ensure the "Modules" subfolder is present.
     val modulesDirectory = File(rylDirectory, "Modules")
     if (!modulesDirectory.exists()) {
-        modulesDirectory.mkdirs()  // Create Modules folder if it doesn't exist
+        modulesDirectory.mkdirs()  // Create "Modules" folder if it does not exist.
     }
-
     return rylDirectory
 }
 
-
-
-
-
-
+// Creates a module folder with its info file and subfolders for weeks and days.
+// This function creates a folder for the module, writes the module info to "module_info.txt",
+// and then creates a folder for each week with subfolders for each day.
 fun createWeeklyFolders(mainDirectory: String, name: String, numberOfWeeks: Int, textColor: Color) {
-    // Create the main folder (e.g., 'name')
+    // Create the main module folder.
     val mainFolder = File(mainDirectory, name)
     if (!mainFolder.exists()) {
-        mainFolder.mkdir()  // Create the main folder
+        mainFolder.mkdir()  // Create the folder if it does not exist.
         println("Main folder '$name' created in '$mainDirectory'")
     } else {
         println("Main folder '$name' already exists in '$mainDirectory'")
     }
 
-    // Create module_info.txt and write both the color and number of weeks
+    // Write module metadata (text color and weeks) into "module_info.txt".
     val infoFile = File(mainFolder, "module_info.txt")
     val infoContent = """
         Text Color: $textColor
         Weeks: $numberOfWeeks
     """.trimIndent()
-
-    infoFile.writeText(infoContent) // Save the color and weeks info
-
+    infoFile.writeText(infoContent)
     println("Created module_info.txt with color and weeks data.")
 
-    // Days of the week (subfolders to be created in each week folder)
+    // Create subfolders for each week and its days.
     val daysOfWeek = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-
-    // Loop through and create 'week' folders
     for (weekNum in 1..numberOfWeeks) {
         val weekFolderName = "week$weekNum"
         val weekFolder = File(mainFolder, weekFolderName)
-
         if (!weekFolder.exists()) {
-            weekFolder.mkdir()  // Create the week folder
+            weekFolder.mkdir()  // Create the week folder.
             println("Created folder: $weekFolder")
         }
-
-        // Inside each week folder, create folders for each day of the week
+        // Create a subfolder for each day of the week.
         for (day in daysOfWeek) {
             val dayFolder = File(weekFolder, day)
             if (!dayFolder.exists()) {
-                dayFolder.mkdir()  // Create the day folder
+                dayFolder.mkdir()  // Create the day folder.
                 println("Created folder: $dayFolder")
             }
         }
     }
 }
 
-
-
+// Checks if a module exists in the "Modules" directory and creates it if not.
+// Returns true if the module was created; false if it already exists.
 fun modulemaker(name: String, numberOfWeeks: Int, textColor: androidx.compose.ui.graphics.Color): Boolean {
     val mainDirectory = "/data/data/com.example.ryl_app/files/RYL_Directory/Modules"
     val modulePath = File(mainDirectory, name)
 
-    //if module exits then done create
+    // Check for an existing module folder.
     if (modulePath.exists()) {
         println("Module '$name' already exists in Modules directory.")
-
         return false
     }
 
+    // Create the module folder structure if it does not exist.
     createWeeklyFolders(mainDirectory, name, numberOfWeeks, textColor)
     println("Module '$name' created successfully")
     return true
 }
 
-
+// Reads module data from each module's info file and returns arrays of module paths, text colors, and week counts.
 fun getModuleData(): Triple<Array<String>, Array<Color>, Array<Int>> {
     val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
-
     if (!modulesDirectory.exists() || !modulesDirectory.isDirectory) {
         println("Modules directory does not exist.")
         return Triple(emptyArray(), emptyArray(), emptyArray())
@@ -104,34 +91,28 @@ fun getModuleData(): Triple<Array<String>, Array<Color>, Array<Int>> {
     val moduleColors = mutableListOf<Color>()
     val moduleNumbers = mutableListOf<Int>()
 
+    // Iterate over each module folder.
     modulesDirectory.listFiles { file -> file.isDirectory }?.forEach { moduleFolder ->
-        val modulePath = moduleFolder.absolutePath
-        modulePaths.add(modulePath)
+        modulePaths.add(moduleFolder.absolutePath)
 
-        // Read module_info.txt inside the module folder
+        // Read metadata from "module_info.txt".
         val infoFile = File(moduleFolder, "module_info.txt")
         if (infoFile.exists()) {
             val lines = infoFile.readLines()
-
-            // Default values
-            var textColor = Color.Black
-            var number = 0
-
+            var textColor = Color.Black  // Default color.
+            var number = 0               // Default weeks count.
             lines.forEach { line ->
                 when {
                     line.startsWith("Text Color:") -> {
-                        // Extract color string and parse it
                         val colorString = line.removePrefix("Text Color:").trim()
                         textColor = parseComposeColor(colorString)
                     }
                     line.startsWith("Weeks:") -> {
-                        // Extract the number following "Weeks:" (remove the prefix and trim the spaces)
                         val numberString = line.removePrefix("Weeks:").trim()
-                        number = numberString.toIntOrNull() ?: 0  // Default to 0 if not valid
+                        number = numberString.toIntOrNull() ?: 0
                     }
                 }
             }
-
             moduleColors.add(textColor)
             moduleNumbers.add(number)
         } else {
@@ -143,16 +124,12 @@ fun getModuleData(): Triple<Array<String>, Array<Color>, Array<Int>> {
     return Triple(modulePaths.toTypedArray(), moduleColors.toTypedArray(), moduleNumbers.toTypedArray())
 }
 
-
-
-
-
-//is used to handle the colors coming from the text file
+// Parses a string representation of a Compose Color into a Color object.
+// Expected format is similar to "Color(r, g, b, a, ...)".
 fun parseComposeColor(colorString: String): Color {
     return try {
         val regex = Regex("""Color\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+), .*?\)""")
         val matchResult = regex.find(colorString)
-
         if (matchResult != null) {
             val (r, g, b, a) = matchResult.destructured
             Color(r.toFloat(), g.toFloat(), b.toFloat(), a.toFloat())
@@ -166,8 +143,9 @@ fun parseComposeColor(colorString: String): Color {
     }
 }
 
-
-//function that allows the addition of a named folder for the lecture times
+// Searches for a module folder based on a query, navigates to a specified week and day,
+// and creates a lecture folder with the format "lectureName__time".
+// Returns the absolute path of the day folder if successful, or null otherwise.
 fun findModuleWeekDayLectureAndCreateFolder(
     moduleNameQuery: String,
     weekNumber: String,
@@ -176,38 +154,30 @@ fun findModuleWeekDayLectureAndCreateFolder(
     time: String
 ): String? {
     val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
-
     if (!modulesDirectory.exists() || !modulesDirectory.isDirectory) {
         println("Modules directory does not exist.")
         return null
     }
 
-    // List all the subfolders in the Modules directory
+    // Iterate through module folders to find a match.
     modulesDirectory.listFiles { file -> file.isDirectory }?.forEach { moduleFolder ->
         val moduleName = moduleFolder.name
-
-        // Check if the module name contains the query string (case insensitive)
         if (moduleName.equals(moduleNameQuery, ignoreCase = true)) {
-            // Now, search for the specific week folder inside the module
+            // Find the week folder within the module.
             val weekFolder = File(moduleFolder, "week$weekNumber")
-
             if (weekFolder.exists() && weekFolder.isDirectory) {
-                // Now, search for the specific day folder inside the week
+                // Find the day folder within the week.
                 val dayFolder = File(weekFolder, dayName)
-
                 if (dayFolder.exists() && dayFolder.isDirectory) {
-                    // Create a new folder with the name "lectureName__time"
+                    // Create the lecture folder if it doesn't already exist.
                     val folderName = lectureName + "__" + time
                     val newLectureFolder = File(dayFolder, folderName)
-
                     if (!newLectureFolder.exists()) {
-                        newLectureFolder.mkdir()  // Create the new folder
+                        newLectureFolder.mkdir()
                         println("Created folder '$folderName' inside '$dayName' in week '$weekNumber'.")
                     } else {
                         println("Folder '$folderName' already exists inside '$dayName' in week '$weekNumber'.")
                     }
-
-                    // Return the path to the day folder
                     return dayFolder.absolutePath
                 } else {
                     println("Day '$dayName' not found in week '$weekNumber' of module '$moduleName'.")
@@ -219,51 +189,43 @@ fun findModuleWeekDayLectureAndCreateFolder(
             }
         }
     }
-
-    // If no module was found
     println("No module containing '$moduleNameQuery' found.")
     return null
 }
 
-
-
-// fetches the lecture folder names inside of a day.
+// Retrieves an array of lecture folder names from a specified module, week, and day.
+// Returns an empty array if the module/week/day path is invalid.
 fun getLecturesInDay(moduleName: String, week: String, day: String): Array<String> {
     val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
-
     if (!modulesDirectory.exists() || !modulesDirectory.isDirectory) {
         println("Modules directory does not exist.")
         return emptyArray()
     }
 
-    // Locate the module folder
+    // Locate module, week, and day folders sequentially.
     val moduleFolder = File(modulesDirectory, moduleName)
     if (!moduleFolder.exists() || !moduleFolder.isDirectory) {
         println("Module '$moduleName' not found.")
         return emptyArray()
     }
-
-    // Locate the week folder
     val weekFolder = File(moduleFolder, "week$week")
     if (!weekFolder.exists() || !weekFolder.isDirectory) {
         println("Week '$week' not found in module '$moduleName'.")
         return emptyArray()
     }
-
-    // Locate the day folder
     val dayFolder = File(weekFolder, day)
     if (!dayFolder.exists() || !dayFolder.isDirectory) {
         println("Day '$day' not found in week '$week' of module '$moduleName'.")
         return emptyArray()
     }
 
-    // Get all lecture folder names inside the day folder
+    // Return the names of all lecture folders in the day folder.
     val lectureNames = dayFolder.listFiles { file -> file.isDirectory }?.map { it.name }?.toTypedArray() ?: emptyArray()
-
     return lectureNames
 }
 
-
+// Checks if a new lecture time (formatted as "HH:mm - HH:mm") conflicts with existing lectures on the same day.
+// Returns true if a conflict exists, false otherwise.
 fun checkLectureTimeConflict(
     moduleName: String,
     weekNumber: String,
@@ -271,67 +233,56 @@ fun checkLectureTimeConflict(
     time: String
 ): Boolean {
     val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
-
     if (!modulesDirectory.exists() || !modulesDirectory.isDirectory) {
         println("Modules directory does not exist.")
         return false
     }
 
+    // Locate module, week, and day folders.
     val moduleFolder = File(modulesDirectory, moduleName)
     if (!moduleFolder.exists() || !moduleFolder.isDirectory) {
         println("Module '$moduleName' not found.")
         return false
     }
-
     val weekFolder = File(moduleFolder, "week$weekNumber")
     if (!weekFolder.exists() || !weekFolder.isDirectory) {
         println("Week '$weekNumber' not found in module '$moduleName'.")
         return false
     }
-
     val dayFolder = File(weekFolder, dayName)
     if (!dayFolder.exists() || !dayFolder.isDirectory) {
         println("Day '$dayName' not found in week '$weekNumber' of module '$moduleName'.")
         return false
     }
 
-    // Convert new lecture time to a comparable format
+    // Convert the new lecture time into minutes and check for overlapping time ranges.
     val (newStart, newEnd) = time.split(" - ").map { it.toMinutes() }
-
-    // Check if any existing lecture has overlapping time
     dayFolder.listFiles { file -> file.isDirectory }?.forEach { existingLecture ->
         val existingLectureTime = existingLecture.name.split("__").getOrNull(1)
-
         if (existingLectureTime != null) {
             val (existingStart, existingEnd) = existingLectureTime.split(" - ").map { it.toMinutes() }
-
-            // Check for time overlap
             if (newStart < existingEnd && newEnd > existingStart) {
                 println("Time conflict: The new lecture ($time) overlaps with existing lecture ($existingLectureTime).")
                 return true
             }
         }
     }
-
     return false
 }
 
-// Extension function to convert "HH:mm" string to minutes
+// Extension function: Converts a "HH:mm" formatted string into total minutes.
 fun String.toMinutes(): Int {
     val (hours, minutes) = this.split(":").map { it.toInt() }
     return hours * 60 + minutes
 }
 
-
-
-
+// Deletes a module folder (and its contents) from the "Modules" directory.
+// Returns true if deletion is successful.
 fun deleteModuleByName(moduleName: String): Boolean {
     val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
     val moduleFolder = File(modulesDirectory, moduleName)
-
     if (moduleFolder.exists() && moduleFolder.isDirectory) {
-        // Recursively delete the module directory
-        val deleted = moduleFolder.deleteRecursively()
+        val deleted = moduleFolder.deleteRecursively()  // Recursively delete the module folder.
         if (deleted) {
             println("Module '$moduleName' deleted successfully.")
         } else {
@@ -344,27 +295,22 @@ fun deleteModuleByName(moduleName: String): Boolean {
     }
 }
 
+// Deletes a lecture folder identified by module, week, day, and lecture names.
+// Returns true if the lecture folder is deleted successfully.
 fun deleteLectureByName(moduleName: String, weekNumber: String, dayName: String, lectureName: String): Boolean {
     val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
     val lectureFolder = File(modulesDirectory, "$moduleName/week$weekNumber/$dayName/$lectureName")
-
     if (!lectureFolder.exists() || !lectureFolder.isDirectory) {
         println("Lecture '$lectureName' does not exist at path: ${lectureFolder.absolutePath}")
         return false
     }
-
     println("Attempting to delete lecture folder at: ${lectureFolder.absolutePath}")
-
-    // Log contents before deletion
+    // Log the contents of the lecture folder before deletion.
     lectureFolder.walkTopDown().forEach { file ->
         println("Found in folder before deletion: ${file.absolutePath}")
     }
-
     val deleted = lectureFolder.deleteRecursively()
-
-    // Double-check that it's gone
     val stillExists = lectureFolder.exists()
-
     if (deleted && !stillExists) {
         println("Lecture '$lectureName' deleted successfully.")
         return true
@@ -373,4 +319,3 @@ fun deleteLectureByName(moduleName: String, weekNumber: String, dayName: String,
         return false
     }
 }
-

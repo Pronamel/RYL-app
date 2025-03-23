@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
+// InsideAModuleScreen displays the module's content including a top bar, a list of days and a swipeable week selector.
 @Composable
 fun InsideAModuleScreen(
     path: String,
@@ -31,25 +32,27 @@ fun InsideAModuleScreen(
     BackToHome: () -> Unit,
     NavigateToDay: (duration: Int, week: Int, day: String, moduleName: String) -> Unit
 ) {
+    // Log the received module path and duration.
     println("passed in the name:: $path and the duration:: $duration")
+    // Current week is stored as state; initial value is 1.
     var currentWeek by remember { mutableStateOf(1) }
     val maxWeeks = duration
 
+    // State to control the display of the delete confirmation dialog.
     var showDeleteDialog by remember { mutableStateOf(false) }
-
 
     Column(
         modifier = Modifier
             .background(Color.DarkGray)
             .fillMaxSize()
     ) {
-        // Top bar with Back button on the left and Skull image on the right
+        // Top bar containing Back and Delete buttons.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 60.dp)
         ) {
-            // Back button (unchanged)
+            // Back button aligned to the left.
             Button(
                 onClick = { BackToHome() },
                 modifier = Modifier
@@ -70,10 +73,10 @@ fun InsideAModuleScreen(
                 )
             }
 
-            // Delete Button on the top right
+            // Delete button aligned to the right.
             Button(
                 onClick = {
-                    showDeleteDialog = true // Show dialog when clicked
+                    showDeleteDialog = true // Set flag to show delete confirmation dialog.
                 },
                 modifier = Modifier
                     .size(170.dp, 60.dp)
@@ -82,7 +85,7 @@ fun InsideAModuleScreen(
                     .border(4.dp, Color.Black, RoundedCornerShape(12.dp)),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFF9800) // Orange as discussed
+                    containerColor = Color(0xFFFF9800) // Use orange color.
                 )
             ) {
                 Text(
@@ -92,19 +95,18 @@ fun InsideAModuleScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
-
-
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Days buttons - centered horizontally
+        // Days buttons section; centered horizontally.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 70.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Animated column of buttons for each day of the week.
             ColumnOfButtonsAnimated(
                 weekNumber = currentWeek,
                 onClick1 = { NavigateToDay(duration, currentWeek, "Monday", path) },
@@ -119,14 +121,14 @@ fun InsideAModuleScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Swipeable Week Selector
+        // Swipeable Week Selector allows the user to change the current week by swiping horizontally.
         SwipeableWeekSelector(
             currentWeek = currentWeek,
             maxWeeks = maxWeeks,
             onWeekChange = { week -> currentWeek = week }
         )
 
-
+        // Show the delete confirmation dialog if triggered.
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
@@ -136,8 +138,7 @@ fun InsideAModuleScreen(
                             showDeleteDialog = false
                             deleteModuleByName(path)
                             println("DELETE CONFIRMED for module: $path")
-                            // You can also navigate back or refresh
-                            BackToHome()
+                            BackToHome() // Navigate back after deletion.
                         }
                     ) {
                         Text("Yes", color = Color.Red, fontSize = 18.sp)
@@ -157,10 +158,10 @@ fun InsideAModuleScreen(
                 textContentColor = Color.DarkGray
             )
         }
-
     }
 }
 
+// SwipeableWeekSelector creates a horizontal swipeable box to change the current week.
 @Composable
 fun SwipeableWeekSelector(
     currentWeek: Int,
@@ -171,11 +172,13 @@ fun SwipeableWeekSelector(
     var tempWeek by remember { mutableStateOf(currentWeek) }
     val swipeThreshold = 50f
 
+    // Animate the horizontal offset for smooth swipe effects.
     val offsetX = animateIntOffsetAsState(
         targetValue = IntOffset(x = dragOffset.roundToInt(), y = 0),
         animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing)
     )
 
+    // Function to handle the swipe gesture and change the week accordingly.
     fun handleSwipe() {
         if (dragOffset.absoluteValue >= swipeThreshold) {
             val weekChange = if (dragOffset < 0) +1 else -1
@@ -220,6 +223,7 @@ fun SwipeableWeekSelector(
     }
 }
 
+// CustomButton is a reusable button with customizable size, colors, and border.
 @Composable
 fun CustomButton(
     onClick: () -> Unit,
@@ -262,6 +266,7 @@ fun CustomButton(
     }
 }
 
+// ColumnOfButtonsAnimated displays a column of day buttons with animation effects for scale and transparency.
 @Composable
 fun ColumnOfButtonsAnimated(
     weekNumber: Int,
@@ -276,10 +281,10 @@ fun ColumnOfButtonsAnimated(
     val scale = remember { Animatable(0.8f) }
     val alpha = remember { Animatable(0f) }
 
+    // Animate the scale and alpha when the week number changes.
     LaunchedEffect(weekNumber) {
         scale.snapTo(0.8f)
         alpha.snapTo(0f)
-
         scale.animateTo(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)

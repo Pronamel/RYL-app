@@ -1,5 +1,6 @@
 package com.example.ryl_app
 
+// MainActivity is the entry point of the app. It creates required directories, handles permission requests, and sets the content.
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -20,7 +21,6 @@ import androidx.navigation.NavType
 import android.Manifest
 import androidx.activity.result.contract.ActivityResultContracts
 
-
 class MainActivity : ComponentActivity() {
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
@@ -28,11 +28,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Call the function to create the directory
+        // Create the main RYL directory in internal storage.
         val rylDirectory = createRYLDirectory(applicationContext)
         Log.d("RYL_Directory", "Directory created at: ${rylDirectory.absolutePath}")
 
-        // Register the permission launcher
+        // Register a launcher for requesting RECORD_AUDIO permission.
         val requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { isGranted: Boolean ->
@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Check and request microphone permission
+        // Check if RECORD_AUDIO permission is granted, otherwise request it.
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.RECORD_AUDIO
@@ -55,29 +55,26 @@ class MainActivity : ComponentActivity() {
             Log.d("Permission", "Microphone permission already granted.")
         }
 
+        // Set the app's content using Jetpack Compose.
         setContent {
             MyApp()
         }
     }
 }
 
-
-
-
-
-
-
-
+// MyApp initializes the navigation controller and sets up the navigation graph.
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @Composable
 fun MyApp() {
     val navController = rememberNavController()
     AppNavHost(navController = navController)
 }
+
 //=====================================================================================
+// Navigation and Route definitions
+//-------------------------------------------------------------------------------------
 
-
-
+// Sealed class Screen defines the different routes in the app.
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object CreateModule : Screen("create_module")
@@ -100,11 +97,13 @@ sealed class Screen(val route: String) {
     }
 }
 
+// AppNavHost sets up the navigation graph using the NavHost composable.
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @Composable
 fun AppNavHost(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
 
+        // InsideModule route: shows the module's content.
         composable(
             route = Screen.InsideModule.route,
             arguments = listOf(
@@ -125,6 +124,7 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
+        // Home route: displays the home screen.
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToSecondScreen = { navController.navigate(Screen.CreateModule.route) },
@@ -134,6 +134,7 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
+        // CreateModule route: displays the module creation screen.
         composable(Screen.CreateModule.route) {
             createModuleScreen(
                 ExitSelection = { navController.popBackStack() },
@@ -144,6 +145,7 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
+        // InsideDay route: shows the details for a particular day within a module.
         composable(
             route = Screen.InsideDay.route,
             arguments = listOf(
@@ -167,7 +169,7 @@ fun AppNavHost(navController: NavHostController) {
                 moduleName = moduleName,
                 BackToModule = { navController.popBackStack() },
                 ToLectureBuilder = { week, name, moduleName, day ->
-                    // Notice the swap: week comes first, then name, moduleName, day
+                    // Navigate to the lecture builder screen with required parameters.
                     navController.navigate(Screen.LectureBuilder.createRoute(week, name, moduleName, day))
                 },
                 ToLecture = { day, week, name, moduleName ->
@@ -176,7 +178,7 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-
+        // LectureBuilder route: allows user to build lecture details.
         composable(
             route = Screen.LectureBuilder.route,
             arguments = listOf(
@@ -203,7 +205,7 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
-
+        // InsideLecture route: shows the lecture content.
         composable(
             route = Screen.InsideLecture.route,
             arguments = listOf(
@@ -214,7 +216,7 @@ fun AppNavHost(navController: NavHostController) {
             )
         ) { backStackEntry ->
             val day = backStackEntry.arguments?.getString("day") ?: "DefaultDay"
-            val week = backStackEntry.arguments?.getInt("week") ?: 1  // Changed to getInt()
+            val week = backStackEntry.arguments?.getInt("week") ?: 1
             val name = backStackEntry.arguments?.getString("name") ?: "DefaultName"
             val moduleName = backStackEntry.arguments?.getString("moduleName") ?: "DefaultModule"
 

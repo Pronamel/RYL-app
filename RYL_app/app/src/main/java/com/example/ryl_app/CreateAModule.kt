@@ -44,30 +44,31 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun createModuleScreen(
-    ExitSelection: () -> Unit,
-    ConfirmSelection: () -> Unit,
-    onNavigateToInsideModule: (String, Int) -> Unit
+    ExitSelection: () -> Unit,                // Callback for exit action
+    ConfirmSelection: () -> Unit,             // (Not used directly in this snippet)
+    onNavigateToInsideModule: (String, Int) -> Unit  // Navigate to inside module with module name and duration
 ) {
+    // State variables for module name, selected color, and duration.
     var moduleName by remember { mutableStateOf("") }
-    // Default color is White; user must pick another color.
-    var selectedColor by remember { mutableStateOf(Color.White) }
-    // Set default duration to 0 so that the user must pick a valid duration (> 0)
-    var selectedDuration by remember { mutableStateOf(0) }
+    var selectedColor by remember { mutableStateOf(Color.White) } // Default white requires user change.
+    var selectedDuration by remember { mutableStateOf(0) }          // Default 0 forces user to pick a valid duration.
 
+    // Flags to display the bottom sheets for color and duration selection.
     var showColorPicker by remember { mutableStateOf(false) }
     var showModuleDurationPicker by remember { mutableStateOf(false) }
 
+    // Get local controllers for keyboard, focus, and haptic feedback.
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
 
-    // Enable Confirm only when moduleName is not blank, a color is selected (not white),
-    // and a module duration greater than 0 has been chosen.
+    // Confirm button is enabled only when all inputs are valid.
     val isConfirmEnabled = moduleName.trim().isNotEmpty() && selectedColor != Color.White && selectedDuration > 0
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // Dismiss keyboard and clear focus when tapping outside.
             .pointerInput(Unit) {
                 detectTapGestures(onTap = {
                     focusManager.clearFocus()
@@ -76,6 +77,7 @@ fun createModuleScreen(
             }
             .background(color = Color.DarkGray)
     ) {
+        // Label for the module name.
         Text(
             text = "Module Name",
             modifier = Modifier.padding(top = 100.dp, start = 28.dp),
@@ -83,6 +85,7 @@ fun createModuleScreen(
             fontSize = 35.sp
         )
 
+        // TextField for module name input, limited to 20 characters.
         TextField(
             value = moduleName,
             onValueChange = { if (it.length <= 20) moduleName = it },
@@ -97,7 +100,7 @@ fun createModuleScreen(
 
         Spacer(modifier = Modifier.padding(top = 40.dp))
 
-        // **Text Color Selection Button**
+        // Button to open the color picker bottom sheet.
         Button(
             onClick = { showColorPicker = true },
             modifier = Modifier
@@ -123,9 +126,9 @@ fun createModuleScreen(
             }
         }
 
-        // **Module Duration Button**
+        // Button to open the module duration picker bottom sheet.
         Button(
-            onClick = { showModuleDurationPicker = true }, // OPEN THE BOTTOM SHEET
+            onClick = { showModuleDurationPicker = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 2.dp, top = 30.dp, bottom = 15.dp)
@@ -153,7 +156,7 @@ fun createModuleScreen(
 
         Spacer(modifier = Modifier.padding(top = 160.dp))
 
-        // **Confirm & Exit Buttons**
+        // Box container for the Exit and Confirm buttons.
         Box(
             modifier = Modifier
                 .background(color = Color.Black.copy(alpha = 0.8f))
@@ -165,6 +168,7 @@ fun createModuleScreen(
                     .fillMaxSize(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Exit button.
                 Button(
                     onClick = { ExitSelection() },
                     modifier = Modifier
@@ -183,7 +187,7 @@ fun createModuleScreen(
 
                 Spacer(modifier = Modifier.padding(10.dp))
 
-                // Confirm Button: enabled only if all fields have valid input.
+                // Confirm button; triggers navigation, confirmation logic, and haptic feedback.
                 Button(
                     onClick = {
                         onNavigateToInsideModule(moduleName, selectedDuration)
@@ -209,7 +213,7 @@ fun createModuleScreen(
         }
     }
 
-    // **Color Picker Bottom Sheet**
+    // Show the Color Picker Bottom Sheet if the flag is set.
     if (showColorPicker) {
         ColorPickerBottomSheet(
             showSheet = true,
@@ -221,7 +225,7 @@ fun createModuleScreen(
         )
     }
 
-    // **Module Duration Bottom Sheet**
+    // Show the Module Duration Bottom Sheet if the flag is set.
     if (showModuleDurationPicker) {
         ModuleDurationBottomSheet(
             showSheet = true,
@@ -234,7 +238,7 @@ fun createModuleScreen(
     }
 }
 
-// **Function to Handle Confirm Button Press**
+// Function to handle Confirm button press; uses a module maker function to validate and create the module.
 fun confirmSelectionPress(moduleName: String, textColor: Color, duration: Int) {
     val check = modulemaker(moduleName, duration, textColor)
     if (!check) {
@@ -255,6 +259,7 @@ fun ColorPickerBottomSheet(
     onColorSelected: (Color) -> Unit
 ) {
     if (showSheet) {
+        // Modal bottom sheet for picking a text color.
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             containerColor = Color(0xFF222222),
@@ -270,7 +275,7 @@ fun ColorPickerBottomSheet(
                     .background(Color(0xFF333333), RoundedCornerShape(20.dp))
                     .animateContentSize()
             ) {
-                // Draggable Handle
+                // Draggable handle indicator.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.15f)
@@ -281,7 +286,7 @@ fun ColorPickerBottomSheet(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // "Pick a Color" Title
+                // Title text.
                 Text(
                     text = "Pick a Color",
                     fontSize = 28.sp,
@@ -291,7 +296,7 @@ fun ColorPickerBottomSheet(
                         .align(Alignment.CenterHorizontally)
                 )
 
-                // First nine are color blind friendly colors, then an additional ten
+                // List of colors (first 9 are color-blind friendly, followed by 10 additional colors).
                 val colors = listOf(
                     "Orange" to Color(0xFFE69F00),
                     "Sky Blue" to Color(0xFF56B4E9),
@@ -302,7 +307,7 @@ fun ColorPickerBottomSheet(
                     "Light Pink" to Color(0xFFCC79A7),
                     "Gray" to Color(0xFF999999),
                     "Teal" to Color(0xFF008080),
-                    // Additional 10 colors
+                    // Additional colors
                     "Red" to Color.Red,
                     "Green" to Color.Green,
                     "Blue" to Color.Blue,
@@ -316,6 +321,7 @@ fun ColorPickerBottomSheet(
                     "Lime" to Color(0xFF32CD32)
                 )
 
+                // Grid layout displaying each color option.
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 120.dp),
                     modifier = Modifier
@@ -329,6 +335,7 @@ fun ColorPickerBottomSheet(
                                 .padding(12.dp)
                                 .clickable { onColorSelected(color) }
                         ) {
+                            // Color circle with border.
                             Box(
                                 modifier = Modifier
                                     .size(50.dp)
@@ -336,6 +343,7 @@ fun ColorPickerBottomSheet(
                                     .border(3.dp, Color.White, CircleShape)
                                     .padding(5.dp)
                             )
+                            // Color name label.
                             Text(
                                 text = name,
                                 color = Color.White,
@@ -350,7 +358,6 @@ fun ColorPickerBottomSheet(
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModuleDurationBottomSheet(
@@ -359,6 +366,7 @@ fun ModuleDurationBottomSheet(
     onDurationSelected: (Int) -> Unit
 ) {
     if (showSheet) {
+        // Modal bottom sheet for selecting the module duration.
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             containerColor = Color(0xFF222222),
@@ -374,7 +382,7 @@ fun ModuleDurationBottomSheet(
                     .background(Color(0xFF333333), RoundedCornerShape(20.dp))
                     .animateContentSize()
             ) {
-                // Draggable Handle
+                // Draggable handle indicator.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.15f)
@@ -385,7 +393,7 @@ fun ModuleDurationBottomSheet(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Title for Duration Selection
+                // Title for the duration selection.
                 Text(
                     text = "Select Module Duration",
                     fontSize = 28.sp,
@@ -395,8 +403,10 @@ fun ModuleDurationBottomSheet(
                         .align(Alignment.CenterHorizontally)
                 )
 
+                // Duration options from 1 to 12.
                 val durations = (1..12).toList()
 
+                // Grid layout for duration options.
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
                     modifier = Modifier
@@ -413,6 +423,7 @@ fun ModuleDurationBottomSheet(
                                 .clickable { onDurationSelected(duration) }
                                 .padding(8.dp)
                         ) {
+                            // Display the duration number.
                             Text(
                                 text = "$duration",
                                 fontSize = 24.sp,

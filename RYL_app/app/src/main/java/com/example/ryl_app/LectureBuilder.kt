@@ -43,7 +43,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 
-
+// LectureBuilderScreen provides the UI for building a lecture by entering its name and selecting a time range.
+// It displays a text field for the lecture name, a button to open a time selection dialog, a preview rectangle showing the lecture details,
+// and bottom buttons to exit or confirm the lecture creation.
 @Composable
 fun LectureBuilderScreen(
     day: String,
@@ -53,25 +55,27 @@ fun LectureBuilderScreen(
     BackToDay: () -> Unit,
     ToLecture: (day: String, week: Int, name: String, moduleName: String) -> Unit,
 ) {
+    // Mutable state for lecture name input and lecture time range.
     var text by remember { mutableStateOf("") }
     var lectureTime by remember { mutableStateOf("00:00 - 00:00") }
+    // State flag to show/hide the time selection dialog.
     var showDialog by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
 
-    // Use a Box as the root container so the background covers the full screen.
+    // Root container covers the full screen with a dark gray background.
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.DarkGray) // Full-screen background
+            .background(Color.DarkGray)
     ) {
-        // Main content in a Column with top padding only
+        // Main content area with gesture detection to hide keyboard when tapping outside.
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 50.dp, start = 0.dp, end = 0.dp) // only top (and side) padding
+                .padding(top = 50.dp)
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = {
                         focusManager.clearFocus()
@@ -79,17 +83,14 @@ fun LectureBuilderScreen(
                     })
                 }
         ) {
-
-            Column (modifier = Modifier.padding(start = 11.dp, top = 15.dp)){
-                // Module Name Text
+            // Lecture Name input area.
+            Column(modifier = Modifier.padding(start = 11.dp, top = 15.dp)) {
                 Text(
                     text = "Lecture Name",
                     modifier = Modifier.padding(bottom = 7.dp, start = 23.dp),
                     style = TextStyle(fontSize = 35.sp),
                     fontSize = 35.sp
                 )
-
-                // TextField with rounded corners
                 TextField(
                     value = text,
                     onValueChange = { if (it.length <= 15) text = it },
@@ -104,7 +105,7 @@ fun LectureBuilderScreen(
                 )
             }
 
-            // Time Selection Button
+            // Button to open the time selection dialog.
             Button(
                 onClick = { showDialog = true },
                 modifier = Modifier
@@ -113,11 +114,11 @@ fun LectureBuilderScreen(
                     .height(150.dp),
                 shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
-                contentPadding = PaddingValues(0.dp) // Remove all default padding
+                contentPadding = PaddingValues(0.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start // Ensure left alignment
+                    horizontalArrangement = Arrangement.Start
                 ) {
                     Image(
                         painter = painterResource(R.drawable.clock),
@@ -134,9 +135,7 @@ fun LectureBuilderScreen(
                 }
             }
 
-
-
-            // Time Selection Dialog
+            // Display the time selection dialog if triggered.
             if (showDialog) {
                 TimeSelectionDialog(
                     onDismiss = { showDialog = false },
@@ -146,9 +145,8 @@ fun LectureBuilderScreen(
                 )
             }
 
-
             Spacer(modifier = Modifier.padding(top = 30.dp))
-            // CustomRectangle Box (Purple Box)
+            // Preview area: a custom rectangle that shows the lecture name and time.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -161,29 +159,28 @@ fun LectureBuilderScreen(
                 )
             }
 
-            // Spacer to push remaining content to the bottom.
+            // Spacer to push the bottom container to the bottom.
             Spacer(modifier = Modifier.weight(1f))
         }
 
-        // Bottom container with buttons anchored to the bottom of the screen.
-        // Bottom container with buttons anchored to the bottom of the screen.
+        // Bottom container with Exit and Confirm buttons.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.85f))
-                .padding(horizontal = 16.dp, vertical = 40.dp) // Increased vertical padding for a taller background
+                .padding(horizontal = 16.dp, vertical = 40.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .offset(y = -10.dp), // Move the buttons up within the container
+                    .offset(y = -10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val context = LocalContext.current
 
-                // Exit Button
+                // Exit button to return to the previous screen.
                 Button(
                     onClick = { BackToDay() },
                     modifier = Modifier
@@ -203,7 +200,7 @@ fun LectureBuilderScreen(
                     )
                 }
 
-                // Confirm Button
+                // Confirm button: checks for time conflicts and creates the lecture folder.
                 Button(
                     onClick = {
                         val isConflict = checkLectureTimeConflict(moduleName, week.toString(), day, lectureTime)
@@ -233,53 +230,49 @@ fun LectureBuilderScreen(
                 }
             }
         }
-
     }
 }
 
-
-
-
-
+// CustomRectangle displays a styled box with two pieces of text (top-left and bottom-right) on a layered background.
 @Composable
 fun CustomRectangle(
     width: Dp = 320.dp,
     height: Dp = 180.dp,
     borderWidth: Dp = 4.dp,
-    innerEdgeWidth: Dp = 13.dp, // Thicker inner edge
-    text1: String, // First text for the top-left
-    text2: String // Second text for the bottom-right
+    innerEdgeWidth: Dp = 13.dp,
+    text1: String,
+    text2: String
 ) {
     Box(
         modifier = Modifier
             .size(width, height)
-            .border(borderWidth, Color.Black, RoundedCornerShape(4.dp)) // Black outer border
-            .background(Color(0xFFFF8EB2), RoundedCornerShape(4.dp)) // Slightly darker pink inner edge
-            .padding(innerEdgeWidth) // Creates spacing for the main pink
-            .background(Color(0xFFFFC1E3), RoundedCornerShape(4.dp)) // Main pink fill
+            .border(borderWidth, Color.Black, RoundedCornerShape(4.dp))
+            .background(Color(0xFFFF8EB2), RoundedCornerShape(4.dp))
+            .padding(innerEdgeWidth)
+            .background(Color(0xFFFFC1E3), RoundedCornerShape(4.dp))
     ) {
-        // Position the texts on top-left and bottom-right
+        // Display the first text at the top-left.
         Text(
             text = text1,
             style = TextStyle(fontSize = 25.sp, fontWeight = FontWeight.Bold),
-            color = Color.Black, // Text color for text1
+            color = Color.Black,
             modifier = Modifier
-                .align(Alignment.TopStart) // Align top-left within the Box
+                .align(Alignment.TopStart)
                 .padding(start = 5.dp)
         )
-
+        // Display the second text at the bottom-right.
         Text(
             text = text2,
             style = TextStyle(fontSize = 25.sp, fontWeight = FontWeight.Normal),
-            color = Color.Black, // Text color for text2
+            color = Color.Black,
             modifier = Modifier
-                .align(Alignment.BottomEnd) // Align bottom-right within the Box
+                .align(Alignment.BottomEnd)
                 .padding(end = 5.dp)
         )
     }
 }
 
-
+// TimeSelectionDialog presents a dialog for selecting start and end times for the lecture.
 @Composable
 fun TimeSelectionDialog(
     onDismiss: () -> Unit,
@@ -288,13 +281,14 @@ fun TimeSelectionDialog(
     var startTime by remember { mutableStateOf("09:00") }
     var endTime by remember { mutableStateOf("17:00") }
 
+    // Generate time intervals (e.g., every 30 minutes).
     val timeIntervals = (0..47).map { index ->
         String.format("%02d:%02d", index / 2, if (index % 2 == 0) 0 else 30)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.DarkGray.copy(alpha = 0.9f), // DarkGray with 0.7 alpha
+        containerColor = Color.DarkGray.copy(alpha = 0.9f),
         title = {
             Text(
                 text = "Select Lecture Time",
@@ -341,6 +335,7 @@ fun TimeSelectionDialog(
     )
 }
 
+// TimeSelector provides UI controls to increment or decrement a time value from a list of time intervals.
 @Composable
 fun TimeSelector(label: String, time: String, onTimeChange: (String) -> Unit, timeIntervals: List<String>) {
     Row(
@@ -353,8 +348,8 @@ fun TimeSelector(label: String, time: String, onTimeChange: (String) -> Unit, ti
         Text(
             text = label,
             modifier = Modifier.weight(1f),
-            fontSize = 20.sp, // Larger font size
-            fontWeight = FontWeight.Bold, // Thicker text
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
             color = Color.White
         )
         IconButton(onClick = {
@@ -372,4 +367,3 @@ fun TimeSelector(label: String, time: String, onTimeChange: (String) -> Unit, ti
         }
     }
 }
-

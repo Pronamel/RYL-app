@@ -41,14 +41,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.File
 
+// HomeScreen is the main composable that displays a list of modules and a button to create a new module.
 @Composable
 fun HomeScreen(
     onNavigateToSecondScreen: () -> Unit,
     onNavigateToInsideModule: (String, Int) -> Unit
 ) {
+    // Retrieve module data (paths, colors, durations) from storage.
     val (modulePaths, moduleColours, moduleDurations) = getModuleData()
 
-    // Debugging to see module info
+    // Debug: Print out module data to the console.
     println("===== Module Data =====")
     for (i in modulePaths.indices) {
         println("Module ${i + 1}:")
@@ -58,9 +60,9 @@ fun HomeScreen(
         println("-----------------------")
     }
 
-    // Wrap your existing Column in a Box
+    // Wrap the main content in a Box to layer components.
     Box(modifier = Modifier.fillMaxSize()) {
-        // Existing screen content
+        // Main content column centered on screen.
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -68,16 +70,18 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Display the home screen image.
             Image(
                 painter = painterResource(id = R.drawable.homescreenpic),
                 contentDescription = "microphone image",
                 modifier = Modifier
                     .padding(top = 90.dp)
-                    .scale(1.2f)  // Scale the image 10% bigger
+                    .scale(1.2f)  // Scale the image 20% larger (1.2 times)
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Container for the module list and create button.
             Box(
                 modifier = Modifier
                     .background(Color.DarkGray)
@@ -85,7 +89,9 @@ fun HomeScreen(
                     .fillMaxWidth(0.8f),
                 contentAlignment = Alignment.Center
             ) {
+                // LazyColumn to display modules and the create module button.
                 LazyColumn {
+                    // List modules dynamically from stored module data.
                     items(modulePaths.size) { index ->
                         CustomSizedButton(
                             text = getLastValueInPath(modulePaths[index]),
@@ -93,12 +99,14 @@ fun HomeScreen(
                         ) {
                             val pathCurrent: String = modulePaths[index]
                             println("this is the module durations $pathCurrent")
+                            // Navigate into the selected module.
                             onNavigateToInsideModule(
                                 getLastValueInPath(modulePaths[index]),
                                 moduleDurations[index]
                             )
                         }
                     }
+                    // Additional item: Button to create a new module.
                     item {
                         createModuleButton(text = "+", textColor = Color.Black) {
                             onNavigateToSecondScreen()
@@ -108,22 +116,23 @@ fun HomeScreen(
             }
         }
 
-        // Info icon in the top-right corner with 30 dp padding from the top
+        // Top-right info icon with padding.
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 45.dp, end = 15.dp, bottom = 20.dp)
         ) {
-            InfoIcon()  // This composable shows the circle with an “i” and a popup
+            InfoIcon()  // Displays the info icon with a popup when clicked.
         }
     }
 }
 
+// InfoIcon displays a clickable circle with an "i" that opens an AlertDialog.
 @Composable
 fun InfoIcon() {
     var showDialog by remember { mutableStateOf(false) }
 
-    // Circle with "i" text inside
+    // Circular icon with "i".
     Box(
         modifier = Modifier
             .size(40.dp)
@@ -134,7 +143,7 @@ fun InfoIcon() {
         Text(text = "i", color = Color.Black, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 
-    // Pop-up (AlertDialog) shown when the circle is clicked
+    // AlertDialog popup for displaying informational text.
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -154,6 +163,7 @@ fun InfoIcon() {
     }
 }
 
+// CustomSizedButton is a reusable button with fixed dimensions and border styling.
 @Composable
 fun CustomSizedButton(
     text: String,
@@ -174,6 +184,7 @@ fun CustomSizedButton(
     }
 }
 
+// createModuleButton is styled with a dashed border and used to trigger the creation of a new module.
 @Composable
 fun createModuleButton(
     text: String,
@@ -187,20 +198,20 @@ fun createModuleButton(
             .height(120.dp)
             .padding(15.dp)
             .drawBehind {
-                val strokeWidth = 3.dp.toPx()  // stroke height
-                val dashWidth = 20f            // dash width
-                val dashGap = 10f              // dash spacing
+                val strokeWidth = 3.dp.toPx()  // Define stroke width in pixels.
+                val dashWidth = 20f            // Width of each dash.
+                val dashGap = 10f              // Gap between dashes.
                 val dashPattern = PathEffect.dashPathEffect(floatArrayOf(dashWidth, dashGap), 0f)
                 val cornerRadius = CornerRadius(12.dp.toPx())
 
-                // White border underneath
+                // Draw a white solid rounded rectangle as background.
                 drawRoundRect(
                     color = Color.White,
                     style = Stroke(width = strokeWidth * 2),
                     cornerRadius = cornerRadius
                 )
 
-                // Dashed black border
+                // Draw a dashed black border on top.
                 drawRoundRect(
                     color = Color.Black,
                     style = Stroke(width = strokeWidth * 2, pathEffect = dashPattern),
@@ -214,6 +225,7 @@ fun createModuleButton(
     }
 }
 
+// getLastValueInPath extracts and returns the final folder name from a file path.
 fun getLastValueInPath(path: String): String {
     val file = File(path)
     return file.name

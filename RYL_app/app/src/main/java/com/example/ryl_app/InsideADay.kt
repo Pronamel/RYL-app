@@ -39,15 +39,17 @@ fun InsideADayScreen(
     // For navigating directly to a lecture
     ToLecture: (name: String, week: Int, moduleName: String, day: String) -> Unit
 ) {
-    // Use a mutable state for the lecture folder names
+    // Store the list of lecture folder names as state so that UI updates when data changes.
     val lectures = remember { mutableStateOf(getLecturesInDay(moduleName, week.toString(), day).toList()) }
+    // Process the raw folder names into pairs (text1, text2) for display.
     val processedNames = processFolderNames(lectures.value)
 
-    // Refresh the lecture list every time the screen resumes
+    // Refresh lecture list when the screen resumes.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                // Update the lecture state on resume.
                 lectures.value = getLecturesInDay(moduleName, week.toString(), day).toList()
             }
         }
@@ -57,12 +59,13 @@ fun InsideADayScreen(
         }
     }
 
-    // Variables for header sizing (header remains as-is)
+    // Variables to capture header text widths for dynamic underline sizing.
     var weekTextWidth by remember { mutableStateOf(0f) }
     var dayTextWidth by remember { mutableStateOf(0f) }
     val fontSize = 25.sp
     val density = LocalDensity.current.density
 
+    // Variable to capture week value (used later if needed).
     var capturedWeek by remember { mutableStateOf("") }
 
     Column(
@@ -71,7 +74,7 @@ fun InsideADayScreen(
             .background(color = Color.DarkGray),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Header with Week and Day
+        // Header Section: Displays Week and Day with underlines.
         Column(
             modifier = Modifier
                 .padding(top = 80.dp)
@@ -90,6 +93,7 @@ fun InsideADayScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Display the week text and capture its width for the underline.
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "Week $week",
@@ -101,6 +105,7 @@ fun InsideADayScreen(
                                     weekTextWidth = coordinates.size.width / density
                                 }
                         )
+                        // Underline for the week text.
                         Box(
                             modifier = Modifier
                                 .height(3.dp)
@@ -111,6 +116,7 @@ fun InsideADayScreen(
 
                     Spacer(modifier = Modifier.width(35.dp))
 
+                    // Display the day text and capture its width for the underline.
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = day,
@@ -122,6 +128,7 @@ fun InsideADayScreen(
                                     dayTextWidth = coordinates.size.width / density
                                 }
                         )
+                        // Underline for the day text.
                         Box(
                             modifier = Modifier
                                 .height(3.dp)
@@ -133,9 +140,9 @@ fun InsideADayScreen(
             }
         }
 
-        capturedWeek = "$week"
+        capturedWeek = "$week"  // Store the week value as a string.
 
-        // LazyColumn displaying lectures
+        // Main Content: LazyColumn displaying the list of lectures.
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -143,23 +150,26 @@ fun InsideADayScreen(
                 .padding(top = 70.dp, bottom = 35.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // For each processed lecture name, display a custom rectangle button.
             items(processedNames) { (text1, text2) ->
                 CustomRectangleButton(
                     text1 = text1,
                     text2 = text2,
                     onClick = {
                         Log.d("InsideADayScreen", "Clicked CustomRectangleButton with week: $week")
+                        // Navigate to the lecture screen with parameters.
                         ToLecture(day, week, text1 + "__" + text2, "Z" + moduleName)
                     }
                 )
                 Spacer(modifier = Modifier.height(20.dp))
             }
+            // A button to add a new lecture.
             item {
                 AddLectureButton(onClick = { ToLectureBuilder(week, "nothingyet", moduleName, day) })
             }
         }
 
-        // Bottom: Back Button
+        // Bottom Section: Back button to navigate back to the module screen.
         Column(
             modifier = Modifier
                 .padding(bottom = 25.dp)
@@ -184,7 +194,8 @@ fun InsideADayScreen(
     }
 }
 
-
+// CustomRectangleButton creates a styled button displaying lecture information.
+// It shows two text elements (top-left and bottom-right) on a colored background.
 @Composable
 fun CustomRectangleButton(
     width: Dp = 270.dp,
@@ -203,20 +214,21 @@ fun CustomRectangleButton(
             .padding(innerEdgeWidth)
             .background(Color(0xFFFFC1E3), RoundedCornerShape(4.dp))
     ) {
+        // Transparent button overlay to capture click events.
         Button(
             onClick = onClick,
             modifier = Modifier.fillMaxSize(),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
             elevation = null
         ) {}
-
+        // Top-left text element.
         Text(
             text = text1,
             style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold),
             color = Color.Black,
             modifier = Modifier.align(Alignment.TopStart).padding(start = 5.dp)
         )
-
+        // Bottom-right text element.
         Text(
             text = text2,
             style = TextStyle(fontSize = 25.sp, fontWeight = FontWeight.Normal),
@@ -226,13 +238,15 @@ fun CustomRectangleButton(
     }
 }
 
-
-
+// AddLectureButton creates a button for adding a new lecture.
 @Composable
 fun AddLectureButton(onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = Modifier.width(315.dp).height(60.dp).padding(horizontal = 20.dp),
+        modifier = Modifier
+            .width(315.dp)
+            .height(60.dp)
+            .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
     ) {
@@ -240,11 +254,11 @@ fun AddLectureButton(onClick: () -> Unit) {
     }
 }
 
+// processFolderNames splits folder names on "__" to extract two parts for display.
+// If the folder name doesn't contain "__", it returns the original name with an empty second part.
 fun processFolderNames(folders: List<String>): List<Pair<String, String>> {
     return folders.map { folder ->
         val parts = folder.split("__")
         if (parts.size == 2) parts[0] to parts[1] else folder to ""
     }
 }
-
-

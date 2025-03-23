@@ -51,8 +51,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
-// InsideALectureScreen composable that prepares the merged file and updates the state flag.
+// InsideALectureScreen prepares the merged file for emailing, handles recording state, and displays the UI
+// for recording, playback, and emailing of lecture audio.
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
 fun InsideALectureScreen(
@@ -63,19 +63,20 @@ fun InsideALectureScreen(
     BackToLectureBuilder: () -> Unit,
     BackToInsideADay: () -> Unit,
 ) {
+    // Process module name to determine type and update module name if necessary.
     val (isL, updatedModuleName) = processModuleName(moduleName)
     val context = LocalContext.current
 
-    // Recording states.
+    // Recording state and timer initialization.
     var isRecording by remember { mutableStateOf(false) }
     var recorder: MediaRecorder? by remember { mutableStateOf(null) }
     var recordingTimeMs by remember { mutableStateOf(0L) }
 
-    // Segment file management.
+    // Manage recorded segments and their file indices.
     var recordingIndex by remember { mutableStateOf(1) }
     val recordedSegments = remember { mutableStateListOf<File>() }
 
-    // Build folder structure.
+    // Build folder structure for the lecture.
     val baseDirectory = File(context.filesDir, "RYL_Directory/Modules")
     val lectureDirectory = File(baseDirectory, "$updatedModuleName/week$week/$day/$name")
     if (!lectureDirectory.exists()) {
@@ -84,29 +85,25 @@ fun InsideALectureScreen(
 
     var isFileReady by remember { mutableStateOf(false) }
 
-
-    // Delete dialog state
+    // State for showing the delete confirmation dialog.
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    // Remove trailing time information from the lecture name.
     val cleanedName = removeafter__(name)
-    // File for merged recording.
+    // File that will store the merged recording.
     val mergedOutputFile = File(lectureDirectory, "$cleanedName.m4a")
 
+    // Prevent the screen from turning off while recording.
     KeepScreenOn(enabled = isRecording)
 
-
-
-    // On initial composition, if a merged file already exists, update the flag.
+    // On initial composition, check if a merged file already exists and mark it as ready.
     LaunchedEffect(Unit) {
         if (mergedOutputFile.exists()) {
-            // If a merged file exists, we consider it ready for emailing.
-            // (You might also want to check that it's valid.)
-            // This enables the EmailButton on first entry.
             isFileReady = true
         }
     }
 
-    // Load existing segment files.
+    // Load previously recorded segment files and update the recording index.
     LaunchedEffect(lectureDirectory) {
         val segments = lectureDirectory.listFiles { file ->
             file.name.startsWith("recording_") && file.name.endsWith(".m4a")
@@ -121,10 +118,12 @@ fun InsideALectureScreen(
         }
     }
 
+    // Returns the next file for recording a segment.
     fun getNextSegmentFile(): File {
         return File(lectureDirectory, "recording_${recordingIndex++}.m4a")
     }
 
+    // Start recording: set up MediaRecorder, configure parameters, and begin recording.
     fun startRecording() {
         val segmentFile = getNextSegmentFile()
         recorder = MediaRecorder().apply {
@@ -139,6 +138,7 @@ fun InsideALectureScreen(
         recordingTimeMs = 0L
     }
 
+    // Stop recording: stop and release MediaRecorder, encrypt the segment, and merge segments.
     fun stopRecording() {
         recorder?.apply {
             stop()
@@ -147,11 +147,11 @@ fun InsideALectureScreen(
         recorder = null
         isRecording = false
         val segmentFile = File(lectureDirectory, "recording_${recordingIndex - 1}.m4a")
-        // Encrypt the recorded segment after recording is complete.
+        // Encrypt the recorded segment after stopping.
         encryptFile(segmentFile)
         recordedSegments.add(segmentFile)
 
-        // Immediately trigger merging/updating of the merged file.
+        // Merge segments asynchronously and update the file ready state.
         CoroutineScope(Dispatchers.IO).launch {
             val success = prepareMergedFileForEmail(recordedSegments, mergedOutputFile)
             withContext(Dispatchers.Main) {
@@ -160,7 +160,7 @@ fun InsideALectureScreen(
         }
     }
 
-    // Keep track of recording time.
+    // Update the recording timer while recording.
     LaunchedEffect(isRecording) {
         while (isRecording) {
             delay(1000)
@@ -168,6 +168,7 @@ fun InsideALectureScreen(
         }
     }
 
+    // Format milliseconds into a mm:ss string.
     fun formatRecordingTime(ms: Long): String {
         val totalSeconds = (ms / 1000).toInt()
         val minutes = totalSeconds / 60
@@ -175,11 +176,7 @@ fun InsideALectureScreen(
         return String.format("%02d:%02d", minutes, seconds)
     }
 
-    // State flag to indicate if the merged file is ready.
-    //var isFileReady by remember { mutableStateOf(false) }
-    // (The LaunchedEffect above already sets this if a merged file exists or after stopping recording)
-
-    // UI – (Your UI layout remains unchanged)
+    // UI Layout for the lecture screen.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -188,7 +185,7 @@ fun InsideALectureScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Header
+        // Header displaying the lecture name.
         Column(modifier = Modifier.padding(top = 60.dp)) {
             Box(
                 modifier = Modifier
@@ -206,7 +203,7 @@ fun InsideALectureScreen(
                 )
             }
         }
-        // Elapsed time
+        // Display elapsed recording time.
         Text(
             text = if (isRecording) formatRecordingTime(recordingTimeMs) else "00:00",
             fontSize = 50.sp,
@@ -215,7 +212,7 @@ fun InsideALectureScreen(
         )
         Spacer(modifier = Modifier.weight(0.5f))
 
-        // Record Button
+        // Record button to start or stop recording.
         Column(modifier = Modifier.padding(bottom = 25.dp)) {
             Box(
                 modifier = Modifier
@@ -235,7 +232,7 @@ fun InsideALectureScreen(
             }
         }
 
-        // Listen + Email buttons
+        // Section for playback and emailing: includes an audio playback button and an email button.
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -254,14 +251,14 @@ fun InsideALectureScreen(
         }
         Spacer(modifier = Modifier.weight(1f))
 
-        // Bottom row: Back & Delete
+        // Bottom row containing Back and Delete buttons.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 15.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            // Back Button
+            // Back button navigates back based on module type.
             Box(
                 modifier = Modifier
                     .width(170.dp)
@@ -279,7 +276,7 @@ fun InsideALectureScreen(
                 )
             }
 
-            // Delete Button
+            // Delete button triggers a confirmation dialog.
             Box(
                 modifier = Modifier
                     .width(170.dp)
@@ -299,7 +296,7 @@ fun InsideALectureScreen(
         }
     }
 
-    // Delete confirmation dialog (unchanged)
+    // Delete confirmation dialog for deleting the lecture.
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -308,17 +305,17 @@ fun InsideALectureScreen(
                     onClick = {
                         showDeleteDialog = false
 
-                        // Stop recording if active
+                        // Stop recording if it is active.
                         if (isRecording) {
                             stopRecording()
                         }
 
-                        // Navigate back immediately
+                        // Navigate back immediately.
                         if (isL) BackToLectureBuilder() else BackToInsideADay()
 
-                        // Then, in a coroutine, wait a moment and delete the folder
+                        // Launch a coroutine to delete the lecture folder after a brief delay.
                         CoroutineScope(Dispatchers.IO).launch {
-                            delay(500L) // wait for 500ms to ensure all resources are released
+                            delay(500L) // Wait for 500ms to ensure resources are released.
                             val deleted = lectureDirectory.deleteRecursively()
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
@@ -347,8 +344,7 @@ fun InsideALectureScreen(
     }
 }
 
-
-
+// AudioPlaybackButton displays a button to listen to the merged audio and opens an audio player dialog.
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
 fun AudioPlaybackButton(
@@ -389,7 +385,8 @@ fun AudioPlaybackButton(
     }
 }
 
-// EmailButton composable that uses the state flag to enable/disable itself.
+// EmailButton enables the user to send an email with the merged audio recording.
+// It decrypts the merged file temporarily and launches an email intent.
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
 fun EmailButton(
@@ -398,13 +395,13 @@ fun EmailButton(
     isFileReady: Boolean
 ) {
     val context = LocalContext.current
-    // Create an ActivityResultLauncher to listen for when the email intent finishes.
+    // Create an ActivityResultLauncher to handle email sending.
     val emailLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { _ ->
-        // When the email app is closed, wait briefly and then delete the temporary decrypted file.
+        // When the email app is closed, wait and then delete the temporary decrypted file.
         CoroutineScope(Dispatchers.IO).launch {
-            delay(500L) // Adjust delay as needed
+            delay(5000L)
             val tempDecryptedFile = File(mergedOutputFile.parent, "$cleanedName-.m4a")
             if (tempDecryptedFile.exists()) {
                 tempDecryptedFile.delete()
@@ -422,7 +419,7 @@ fun EmailButton(
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable(enabled = isFileReady) {
-                // Decrypt the merged file into a temporary file.
+                // Decrypt the merged file into a temporary file for email attachment.
                 val tempDecryptedFile = File(mergedOutputFile.parent, "$cleanedName-.m4a")
                 decryptFile(mergedOutputFile, tempDecryptedFile)
                 val uri = FileProvider.getUriForFile(
@@ -450,8 +447,8 @@ fun EmailButton(
     }
 }
 
-
-
+// AudioPlayerDialog provides a UI dialog for playing back the merged audio recording.
+// It handles playback controls, seeking, and displays current playback time.
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
 fun AudioPlayerDialog(
@@ -465,13 +462,13 @@ fun AudioPlayerDialog(
     var isMerging by remember { mutableStateOf(false) }
     var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
     var currentPositionMs by remember { mutableStateOf(0f) }
-    var durationMs by remember { mutableStateOf(1f) } // default to avoid divide-by-zero
+    var durationMs by remember { mutableStateOf(1f) } // default to avoid division by zero
     var isDragging by remember { mutableStateOf(false) }
-    // State variable to hold our temporary dummy file for playback.
+    // Store a temporary dummy file for playback.
     var dummyAudioFile by remember { mutableStateOf<File?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-
+    // Helper to format milliseconds into a mm:ss string.
     fun formatMs(ms: Int): String {
         val totalSeconds = ms / 1000
         val minutes = totalSeconds / 60
@@ -479,28 +476,29 @@ fun AudioPlayerDialog(
         return String.format("%02d:%02d", minutes, seconds)
     }
 
+    // Prepares the audio for playback by merging recorded segments.
     fun prepareAudio(onReady: (File) -> Unit) {
         if (recordedSegments.isNotEmpty()) {
             isMerging = true
             coroutineScope.launch {
-                // Decrypt each recorded segment into a temporary file.
+                // Decrypt each segment into temporary files.
                 val decryptedSegments = recordedSegments.map { encryptedFile ->
                     File(encryptedFile.parent, "decrypted_${encryptedFile.name}").also { tempFile ->
                         decryptFile(encryptedFile, tempFile)
                     }
                 }
-                // Merge the decrypted segments into the mergedOutputFile.
+                // Merge the decrypted segments.
                 mergeSegments(decryptedSegments, mergedOutputFile)
-                // Optionally, delete the temporary decrypted segment files.
+                // Clean up temporary decrypted segment files.
                 decryptedSegments.forEach { it.delete() }
-                // Now encrypt the merged file.
+                // Encrypt the merged file.
                 encryptFile(mergedOutputFile)
                 isMerging = false
 
-                // For playback, decrypt the encrypted merged file into a temporary dummy file.
+                // For playback, decrypt the merged file into a dummy file.
                 val tempDummy = File(mergedOutputFile.parent, "dummy_decrypted.m4a")
                 decryptFile(mergedOutputFile, tempDummy)
-                dummyAudioFile = tempDummy  // store the dummy file so we can delete it later
+                dummyAudioFile = tempDummy // Save dummy file reference for later deletion.
                 onReady(tempDummy)
             }
         } else {
@@ -508,9 +506,10 @@ fun AudioPlayerDialog(
         }
     }
 
+    // Launch effect to prepare audio when the dialog is shown.
     LaunchedEffect(Unit) {
         prepareAudio { audioFile ->
-            // Use the temporary dummy file as the data source.
+            // Set up MediaPlayer with the prepared dummy audio file.
             val fis = java.io.FileInputStream(audioFile)
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(fis.fd)
@@ -521,6 +520,7 @@ fun AudioPlayerDialog(
         }
     }
 
+    // Toggle play/pause for the audio playback.
     fun togglePlayPause() {
         mediaPlayer?.let { player ->
             if (isPlaying) {
@@ -533,11 +533,13 @@ fun AudioPlayerDialog(
         }
     }
 
+    // Seek to a specific millisecond in the audio.
     fun seekToMs(ms: Int) {
         mediaPlayer?.seekTo(ms)
         currentPositionMs = ms.toFloat()
     }
 
+    // Jump forward or backward by a specified delta in milliseconds.
     fun jump(deltaMs: Int) {
         mediaPlayer?.let { player ->
             val newMs = (player.currentPosition + deltaMs).coerceIn(0, player.duration)
@@ -546,6 +548,7 @@ fun AudioPlayerDialog(
         }
     }
 
+    // Update current playback position periodically when playing.
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
             if (!isDragging) {
@@ -557,11 +560,12 @@ fun AudioPlayerDialog(
         }
     }
 
+    // Dialog for the audio player UI.
     Dialog(
         onDismissRequest = {
             mediaPlayer?.release()
             mediaPlayer = null
-            // Delete the temporary dummy file after playback.
+            // Delete the temporary dummy file after closing the dialog.
             dummyAudioFile?.delete()
             dummyAudioFile = null
             onDismiss()
@@ -590,6 +594,7 @@ fun AudioPlayerDialog(
                     fontSize = 16.sp,
                     color = Color.White
                 )
+                // Slider to control audio playback position.
                 Slider(
                     value = currentPositionMs,
                     onValueChange = { newValue ->
@@ -603,6 +608,7 @@ fun AudioPlayerDialog(
                     valueRange = 0f..durationMs,
                     modifier = Modifier.fillMaxWidth()
                 )
+                // Playback control buttons: Skip previous, Play/Pause, Skip next.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -663,12 +669,12 @@ fun AudioPlayerDialog(
     }
 }
 
-
+// sendEmail prepares a temporary decrypted file and launches an email intent to send the audio.
 @RequiresApi(Build.VERSION_CODES.N)
 fun sendEmail(context: Context, file: File, cleanedName: String) {
-    // Create a temporary file for the decrypted merged file using cleanedName.
+    // Create a temporary file for the decrypted merged file.
     val tempDecryptedFile = File(file.parent, "$cleanedName-.m4a")
-    // Decrypt the encrypted merged file into the temporary file.
+    // Decrypt the merged file into the temporary file.
     decryptFile(file, tempDecryptedFile)
 
     val uri = FileProvider.getUriForFile(
@@ -686,16 +692,16 @@ fun sendEmail(context: Context, file: File, cleanedName: String) {
     }
     context.startActivity(Intent.createChooser(emailIntent, "Send email using:"))
 
-    // Schedule deletion of the temporary file after a shorter delay (5 seconds)
+    // Schedule deletion of the temporary file after 5 seconds.
     CoroutineScope(Dispatchers.IO).launch {
-        delay(5000L) // 5 seconds delay
+        delay(5000L)
         if (tempDecryptedFile.exists()) {
             tempDecryptedFile.delete()
         }
     }
 }
 
-
+// mergeSegments takes a list of segment files, extracts audio samples, and writes them into a merged output file.
 @RequiresApi(Build.VERSION_CODES.N)
 fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
     val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
@@ -708,6 +714,7 @@ fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
         val extractor = MediaExtractor()
         extractor.setDataSource(file.absolutePath)
         var trackIndex = -1
+        // Find the audio track.
         for (i in 0 until extractor.trackCount) {
             val format = extractor.getTrackFormat(i)
             if (format.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
@@ -725,6 +732,7 @@ fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
             audioTrackIndex = muxer.addTrack(format)
             muxer.start()
         }
+        // Read sample data from the segment file and write to the muxer.
         while (true) {
             val sampleSize = extractor.readSampleData(buffer, 0)
             if (sampleSize < 0) break
@@ -739,6 +747,7 @@ fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
             muxer.writeSampleData(audioTrackIndex, buffer, bufferInfo)
             extractor.advance()
         }
+        // Update time offset for the next segment.
         val durationUs = format.getLong(MediaFormat.KEY_DURATION)
         timeOffsetUs += durationUs
         extractor.release()
@@ -747,6 +756,7 @@ fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
     muxer.release()
 }
 
+// processModuleName inspects the module name and returns a Pair indicating a flag and the cleaned module name.
 fun processModuleName(moduleName: String): Pair<Boolean, String> {
     if (moduleName.isEmpty()) return Pair(false, moduleName)
     val firstChar = moduleName[0].uppercaseChar()
@@ -757,16 +767,14 @@ fun processModuleName(moduleName: String): Pair<Boolean, String> {
     }
 }
 
+// removeafter__ removes any trailing time range information from the input string.
 fun removeafter__(input: String): String {
-    // This regex matches optional whitespace,
-    // then exactly two underscores, optional whitespace,
-    // then a time range in the format HH:MM - HH:MM at the end of the string.
+    // Regex matches optional whitespace, two underscores, optional whitespace, then a time range (HH:MM - HH:MM) at the end.
     val regex = Regex("""\s*_{2}\s*\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$""")
     return input.replace(regex, "")
 }
 
-
-// Suspend function to prepare the merged file (merging, cleaning up, and encryption)
+// prepareMergedFileForEmail is a suspend function that merges recorded segments, cleans up, and encrypts the merged file.
 @RequiresApi(Build.VERSION_CODES.N)
 suspend fun prepareMergedFileForEmail(
     recordedSegments: List<File>,
@@ -779,22 +787,21 @@ suspend fun prepareMergedFileForEmail(
                 decryptFile(encryptedFile, tempFile)
             }
         }
-        // Merge the decrypted segments into mergedOutputFile.
+        // Merge the decrypted segments.
         mergeSegments(decryptedSegments, mergedOutputFile)
-        // Delete the temporary decrypted segment files.
+        // Delete temporary decrypted files.
         decryptedSegments.forEach { it.delete() }
-        // Encrypt the merged file so it is stored securely.
+        // Encrypt the merged file for secure storage.
         encryptFile(mergedOutputFile)
         return true
     }
     return false
 }
 
-
+// KeepScreenOn enables or disables the "keep screen on" flag for the current activity.
 @Composable
 fun KeepScreenOn(enabled: Boolean) {
     val context = LocalContext.current
-
     DisposableEffect(enabled) {
         // Cast context to Activity to access window flags.
         val activity = context as? android.app.Activity
