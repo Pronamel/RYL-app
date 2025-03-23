@@ -197,7 +197,7 @@ fun CustomRectangleButton(
 
         Text(
             text = text1,
-            style = TextStyle(fontSize = 25.sp, fontWeight = FontWeight.Bold),
+            style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold),
             color = Color.Black,
             modifier = Modifier.align(Alignment.TopStart).padding(start = 5.dp)
         )

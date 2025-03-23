@@ -38,7 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 
 
 @Composable
@@ -47,158 +50,194 @@ fun LectureBuilderScreen(
     week: Int,
     name: String,
     moduleName: String,
-
     BackToDay: () -> Unit,
-    ToLecture: (day: String, week: Int,  name: String, moduleName: String) -> Unit,
+    ToLecture: (day: String, week: Int, name: String, moduleName: String) -> Unit,
 ) {
-    var text by remember { mutableStateOf("Lecture Name") }
-    var lectureTime by remember { mutableStateOf("00:00 - 00:00") } // Default value for purple box
+    var text by remember { mutableStateOf("") }
+    var lectureTime by remember { mutableStateOf("00:00 - 00:00") }
     var showDialog by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val haptic = LocalHapticFeedback.current
 
-    Column(
+    // Use a Box as the root container so the background covers the full screen.
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = {
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                })
-            }
-            .background(color = Color.DarkGray)
-            .padding(horizontal = 16.dp, vertical = 50.dp) // Add vertical padding to move content down
+            .background(Color.DarkGray) // Full-screen background
     ) {
-        // Module Name Text
-        Text(
-            text = "Module Name",
-            modifier = Modifier.padding(bottom = 10.dp),
-            style = TextStyle(fontSize = 35.sp),
-            fontSize = 35.sp
-        )
-
-        // TextField
-        TextField(
-            value = text,
-            onValueChange = { if (it.length <= 20) text = it },
-            label = { Text("Enter Here") },
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .background(Color.DarkGray, RoundedCornerShape(12.dp))
-                .border(4.dp, Color.Black, RoundedCornerShape(12.dp))
-                .padding(4.dp)
-        )
-
-        // Time Selection Button
-        Button(
-            onClick = { showDialog = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 15.dp, bottom = 15.dp)
-                .height(150.dp),
-            shape = RoundedCornerShape(22.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(R.drawable.colorwheel),
-                    contentDescription = "Color selection",
-                    modifier = Modifier.size(100.dp)
-                )
-                Spacer(modifier = Modifier.width(15.dp))
-                Text(
-                    text = "Lecture Time",
-                    color = Color.White,
-                    fontSize = 30.sp
-                )
-            }
-        }
-
-        // Show Time Selection Dialog
-        if (showDialog) {
-            TimeSelectionDialog(
-                onDismiss = { showDialog = false },
-                onConfirm = { start, end ->
-                    lectureTime = "$start - $end"  // Update lectureTime with selected time
-                }
-            )
-        }
-
-        // CustomRectangle Box (Purple Box)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 50.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            CustomRectangle(
-                text1 = text,      // Displays the Lecture Name
-                text2 = lectureTime  // Displays the selected time
-            )
-        }
-
-        // Buttons for confirming selection and going back
+        // Main content in a Column with top padding only
         Column(
             modifier = Modifier
-                .padding(top = 50.dp, start = 16.dp, end = 16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .padding(top = 50.dp, start = 0.dp, end = 0.dp) // only top (and side) padding
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    })
+                }
         ) {
 
-            val context = LocalContext.current
-
-            // Confirm Selection Button
-            Button(
-                onClick = {
-                    val isConflict = checkLectureTimeConflict(moduleName, week.toString(), day, lectureTime)
-
-                    if (isConflict) {
-                        // Show popup for time conflict
-                        Toast.makeText(context, "Time conflict with another lecture!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        // No conflict, proceed with creating the lecture
-                        findModuleWeekDayLectureAndCreateFolder(moduleName, week.toString(), day, text, lectureTime)
-                        ToLecture(day, week, text + "__" + lectureTime, "L" + moduleName)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Green.copy(alpha = 0.5f)
-                )
-            ) {
+            Column (modifier = Modifier.padding(start = 11.dp, top = 15.dp)){
+                // Module Name Text
                 Text(
-                    text = "Confirm Selection",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp)
+                    text = "Lecture Name",
+                    modifier = Modifier.padding(bottom = 7.dp, start = 23.dp),
+                    style = TextStyle(fontSize = 35.sp),
+                    fontSize = 35.sp
+                )
+
+                // TextField with rounded corners
+                TextField(
+                    value = text,
+                    onValueChange = { if (it.length <= 15) text = it },
+                    label = { Text("Enter Here") },
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .height(65.dp)
+                        .padding(start = 15.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.DarkGray, RoundedCornerShape(12.dp))
+                        .border(4.dp, Color.Black, RoundedCornerShape(12.dp))
                 )
             }
 
-            // Exit Selection Button
+            // Time Selection Button
             Button(
-                onClick = { BackToDay() },
+                onClick = { showDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Red.copy(alpha = 0.5f)
-                )
+                    .padding(top = 15.dp, bottom = 15.dp)
+                    .height(150.dp),
+                shape = RoundedCornerShape(22.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+                contentPadding = PaddingValues(0.dp) // Remove all default padding
             ) {
-                Text(
-                    text = "Exit Selection",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start // Ensure left alignment
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.clock),
+                        contentDescription = "Color selection",
+                        modifier = Modifier.size(130.dp)
+                    )
+                    Spacer(modifier = Modifier.width(15.dp))
+                    Text(
+                        text = "Lecture Time",
+                        color = Color.White,
+                        fontSize = 30.sp
+                    )
+                    Spacer(modifier = Modifier.width(45.dp))
+                }
+            }
+
+
+
+            // Time Selection Dialog
+            if (showDialog) {
+                TimeSelectionDialog(
+                    onDismiss = { showDialog = false },
+                    onConfirm = { start, end ->
+                        lectureTime = "$start - $end"
+                    }
                 )
+            }
+
+
+            Spacer(modifier = Modifier.padding(top = 30.dp))
+            // CustomRectangle Box (Purple Box)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 50.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CustomRectangle(
+                    text1 = text,
+                    text2 = lectureTime
+                )
+            }
+
+            // Spacer to push remaining content to the bottom.
+            Spacer(modifier = Modifier.weight(1f))
+        }
+
+        // Bottom container with buttons anchored to the bottom of the screen.
+        // Bottom container with buttons anchored to the bottom of the screen.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.85f))
+                .padding(horizontal = 16.dp, vertical = 40.dp) // Increased vertical padding for a taller background
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = -10.dp), // Move the buttons up within the container
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val context = LocalContext.current
+
+                // Exit Button
+                Button(
+                    onClick = { BackToDay() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                        .padding(end = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Text(
+                        text = "Exit",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Confirm Button
+                Button(
+                    onClick = {
+                        val isConflict = checkLectureTimeConflict(moduleName, week.toString(), day, lectureTime)
+                        if (isConflict) {
+                            Toast.makeText(context, "Time conflict with another lecture!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            findModuleWeekDayLectureAndCreateFolder(moduleName, week.toString(), day, text, lectureTime)
+                            ToLecture(day, week, text + "__" + lectureTime, "L" + moduleName)
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                        .padding(start = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Green.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Text(
+                        text = "Confirm",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
+
     }
 }
+
+
 
 
 
@@ -307,7 +346,9 @@ fun TimeSelector(label: String, time: String, onTimeChange: (String) -> Unit, ti
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
         Text(
             text = label,

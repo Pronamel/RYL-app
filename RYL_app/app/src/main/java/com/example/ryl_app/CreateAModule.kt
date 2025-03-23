@@ -5,31 +5,42 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.sp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun createModuleScreen(
@@ -38,14 +49,21 @@ fun createModuleScreen(
     onNavigateToInsideModule: (String, Int) -> Unit
 ) {
     var moduleName by remember { mutableStateOf("") }
-    var selectedColor by remember { mutableStateOf(Color.White) } // Default color
-    var selectedDuration by remember { mutableStateOf(1) }
+    // Default color is White; user must pick another color.
+    var selectedColor by remember { mutableStateOf(Color.White) }
+    // Set default duration to 0 so that the user must pick a valid duration (> 0)
+    var selectedDuration by remember { mutableStateOf(0) }
 
     var showColorPicker by remember { mutableStateOf(false) }
-    var showModuleDurationPicker by remember { mutableStateOf(false) } //  NEW state for Module Duration Bottom Sheet
+    var showModuleDurationPicker by remember { mutableStateOf(false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val haptic = LocalHapticFeedback.current
+
+    // Enable Confirm only when moduleName is not blank, a color is selected (not white),
+    // and a module duration greater than 0 has been chosen.
+    val isConfirmEnabled = moduleName.trim().isNotEmpty() && selectedColor != Color.White && selectedDuration > 0
 
     Column(
         modifier = Modifier
@@ -77,12 +95,14 @@ fun createModuleScreen(
                 .padding(4.dp)
         )
 
+        Spacer(modifier = Modifier.padding(top = 40.dp))
+
         // **Text Color Selection Button**
         Button(
             onClick = { showColorPicker = true },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 0.dp, top = 15.dp, bottom = 15.dp)
+                .padding(start = 2.dp, top = 15.dp, bottom = 15.dp)
                 .height(150.dp),
             shape = RoundedCornerShape(22.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
@@ -91,7 +111,7 @@ fun createModuleScreen(
                 Image(
                     painter = painterResource(R.drawable.colorwheel),
                     contentDescription = "image for color selection",
-                    modifier = Modifier.size(100.dp)
+                    modifier = Modifier.size(113.dp)
                 )
                 Spacer(modifier = Modifier.width(15.dp))
                 Text(
@@ -105,11 +125,11 @@ fun createModuleScreen(
 
         // **Module Duration Button**
         Button(
-            onClick = { showModuleDurationPicker = true }, // ✅ OPEN THE BOTTOM SHEET
+            onClick = { showModuleDurationPicker = true }, // OPEN THE BOTTOM SHEET
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 0.dp, top = 15.dp, bottom = 15.dp)
-                .height(120.dp),
+                .padding(start = 2.dp, top = 30.dp, bottom = 15.dp)
+                .height(150.dp),
             shape = RoundedCornerShape(22.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
         ) {
@@ -117,7 +137,7 @@ fun createModuleScreen(
                 Image(
                     painter = painterResource(R.drawable.calander),
                     contentDescription = "image for module duration",
-                    modifier = Modifier.size(100.dp)
+                    modifier = Modifier.size(115.dp)
                 )
                 Spacer(modifier = Modifier.width(15.dp))
                 Text(
@@ -131,45 +151,60 @@ fun createModuleScreen(
             }
         }
 
-        Spacer(modifier = Modifier.padding(top = 165.dp))
+        Spacer(modifier = Modifier.padding(top = 160.dp))
 
         // **Confirm & Exit Buttons**
-        Column(
+        Box(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(color = Color.Black.copy(alpha = 0.8f))
+                .padding(top = 15.dp)
         ) {
-            Button(
-                onClick = { onNavigateToInsideModule(moduleName, selectedDuration); confirmSelectionPress(moduleName,selectedColor, selectedDuration) },
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Green.copy(alpha = 0.5f))
+                    .padding(16.dp)
+                    .fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "Confirm Selection",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp)
-                )
-            }
+                Button(
+                    onClick = { ExitSelection() },
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = "Exit",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            Spacer(modifier = Modifier.padding(10.dp))
+                Spacer(modifier = Modifier.padding(10.dp))
 
-            Button(
-                onClick = { ExitSelection() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.5f))
-            ) {
-                Text(
-                    text = "Exit Selection",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp)
-                )
+                // Confirm Button: enabled only if all fields have valid input.
+                Button(
+                    onClick = {
+                        onNavigateToInsideModule(moduleName, selectedDuration)
+                        confirmSelectionPress(moduleName, selectedColor, selectedDuration)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    enabled = isConfirmEnabled,
+                    modifier = Modifier
+                        .fillMaxWidth(1f)
+                        .height(50.dp)
+                        .padding(start = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = "Confirm",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -181,47 +216,36 @@ fun createModuleScreen(
             onDismiss = { showColorPicker = false },
             onColorSelected = { color ->
                 selectedColor = color
-                // Handle the selected color (you can store it in a state variable if needed)
                 showColorPicker = false
             }
         )
     }
 
-    //  Module Duration Bottom Sheet
+    // **Module Duration Bottom Sheet**
     if (showModuleDurationPicker) {
         ModuleDurationBottomSheet(
             showSheet = true,
-            onDismiss = { showModuleDurationPicker = false }, //
+            onDismiss = { showModuleDurationPicker = false },
             onDurationSelected = { duration ->
                 selectedDuration = duration
-                //  HANDLE DURATION SELECTION HERE (e.g., store in state)
-                showModuleDurationPicker = false // CLOSE THE SHEET AFTER SELECTION
+                showModuleDurationPicker = false
             }
         )
     }
 }
 
-
 // **Function to Handle Confirm Button Press**
 fun confirmSelectionPress(moduleName: String, textColor: Color, duration: Int) {
-
-    val check = modulemaker(moduleName, duration , textColor )
-
-    if (check == false){
+    val check = modulemaker(moduleName, duration, textColor)
+    if (!check) {
         println("enter unique module name")
-    }
-    else{
+    } else {
         println("module created")
     }
-
-
     println("Module Name: $moduleName")
     println("Selected Color: $textColor")
     println("Selected Duration: $duration")
 }
-
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -233,16 +257,16 @@ fun ColorPickerBottomSheet(
     if (showSheet) {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
-            containerColor = Color(0xFF222222), // Dark Background
+            containerColor = Color(0xFF222222),
             tonalElevation = 8.dp,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-            modifier = Modifier.fillMaxHeight(0.45f) // Increased to make "Pick a Color" section larger
+            modifier = Modifier.fillMaxHeight(0.45f)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight() // Fill more space
-                    .padding(10.dp) // Increased padding for better layout
+                    .fillMaxHeight()
+                    .padding(10.dp)
                     .background(Color(0xFF333333), RoundedCornerShape(20.dp))
                     .animateContentSize()
             ) {
@@ -257,10 +281,10 @@ fun ColorPickerBottomSheet(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Larger "Pick a Color" title
+                // "Pick a Color" Title
                 Text(
                     text = "Pick a Color",
-                    fontSize = 28.sp, // Larger font size
+                    fontSize = 28.sp,
                     color = Color.White,
                     modifier = Modifier
                         .padding(bottom = 10.dp)
@@ -280,12 +304,11 @@ fun ColorPickerBottomSheet(
                     "Teal" to Color(0xFF008080)
                 )
 
-                // Increase height for "Pick a Color" section
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 120.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(1f) // Takes up more space in the sheet
+                        .fillMaxHeight(1f)
                 ) {
                     items(colors) { (name, color) ->
                         Column(
@@ -296,7 +319,7 @@ fun ColorPickerBottomSheet(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(50.dp) // Keep color size the same
+                                    .size(50.dp)
                                     .background(color, CircleShape)
                                     .border(3.dp, Color.White, CircleShape)
                                     .padding(5.dp)
@@ -315,8 +338,6 @@ fun ColorPickerBottomSheet(
     }
 }
 
-
-//module duration bottom sheet
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModuleDurationBottomSheet(
@@ -327,16 +348,16 @@ fun ModuleDurationBottomSheet(
     if (showSheet) {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
-            containerColor = Color(0xFF222222), // Dark Background
+            containerColor = Color(0xFF222222),
             tonalElevation = 8.dp,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-            modifier = Modifier.fillMaxHeight(0.45f) // Similar height as Color Picker
+            modifier = Modifier.fillMaxHeight(0.45f)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight() // Fill more space
-                    .padding(10.dp) // Increased padding for better layout
+                    .fillMaxHeight()
+                    .padding(10.dp)
                     .background(Color(0xFF333333), RoundedCornerShape(20.dp))
                     .animateContentSize()
             ) {
@@ -351,34 +372,33 @@ fun ModuleDurationBottomSheet(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Title
+                // Title for Duration Selection
                 Text(
                     text = "Select Module Duration",
-                    fontSize = 28.sp, // Larger font size
+                    fontSize = 28.sp,
                     color = Color.White,
                     modifier = Modifier
                         .padding(bottom = 10.dp)
                         .align(Alignment.CenterHorizontally)
                 )
 
-                val durations = (1..12).toList() // Numbers from 1 to 12
+                val durations = (1..12).toList()
 
-                // Grid layout: 3 rows, 4 columns
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4), // Ensures 4 items per row
+                    columns = GridCells.Fixed(4),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(1f) // Takes up more space in the sheet
+                        .fillMaxHeight(1f)
                 ) {
                     items(durations) { duration ->
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(70.dp) // Square buttons
+                                .size(70.dp)
                                 .background(Color.DarkGray, RoundedCornerShape(10.dp))
-                                .border(4.dp, Color.White, RoundedCornerShape(10.dp)) // Thick border
+                                .border(4.dp, Color.White, RoundedCornerShape(10.dp))
                                 .clickable { onDurationSelected(duration) }
-                                .padding(8.dp) // Adds internal spacing
+                                .padding(8.dp)
                         ) {
                             Text(
                                 text = "$duration",

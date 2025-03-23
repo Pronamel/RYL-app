@@ -24,19 +24,12 @@ import kotlin.math.absoluteValue
 
 @Composable
 fun InsideAModuleScreen(
-
     path: String,
     duration: Int,
-
-
     BackToHome: () -> Unit,
     NavigateToDay: (duration: Int, week: Int, day: String, moduleName: String) -> Unit
-
-
 ) {
-
-    println("passed in the name:: " + path + " and the duration:: " + duration)
-
+    println("passed in the name:: $path and the duration:: $duration")
     var currentWeek by remember { mutableStateOf(1) }
     val maxWeeks = duration
 
@@ -59,9 +52,9 @@ fun InsideAModuleScreen(
                 )
             ) {
                 Text(
-                    text = "Modules",
+                    text = "Back",
                     color = Color.Black,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 24.sp),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -69,11 +62,16 @@ fun InsideAModuleScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Days buttons
-        Column(modifier = Modifier.padding(top = 70.dp, start = 8.dp)) {
+        // Days buttons - centered horizontally
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 70.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             ColumnOfButtonsAnimated(
                 weekNumber = currentWeek,  // Pass the currentWeek value here
-                onClick1 = { NavigateToDay(duration, currentWeek, "Monday", path)},
+                onClick1 = { NavigateToDay(duration, currentWeek, "Monday", path) },
                 onClick2 = { NavigateToDay(duration, currentWeek, "Tuesday", path) },
                 onClick3 = { NavigateToDay(duration, currentWeek, "Wednesday", path) },
                 onClick4 = { NavigateToDay(duration, currentWeek, "Thursday", path) },
@@ -85,7 +83,7 @@ fun InsideAModuleScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Swipeable Week Selector with faster sensitivity
+        // Swipeable Week Selector - centered and with simplified text
         SwipeableWeekSelector(
             currentWeek = currentWeek,
             maxWeeks = maxWeeks,
@@ -102,7 +100,6 @@ fun SwipeableWeekSelector(
 ) {
     var dragOffset by remember { mutableStateOf(0f) }
     var tempWeek by remember { mutableStateOf(currentWeek) }
-
     val swipeThreshold = 50f
 
     val offsetX = animateIntOffsetAsState(
@@ -114,7 +111,6 @@ fun SwipeableWeekSelector(
         if (dragOffset.absoluteValue >= swipeThreshold) {
             val weekChange = if (dragOffset < 0) +1 else -1
             val newWeek = (tempWeek + weekChange).coerceIn(1, maxWeeks)
-
             if (newWeek != tempWeek) {
                 tempWeek = newWeek
                 onWeekChange(newWeek)
@@ -126,8 +122,8 @@ fun SwipeableWeekSelector(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+            .padding(start = 16.dp, end = 16.dp, top = 32.dp)
+            .background(Color.Gray.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
             .height(100.dp)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -142,13 +138,14 @@ fun SwipeableWeekSelector(
                 .offset { offsetX.value }
                 .fillMaxWidth()
                 .height(100.dp)
-                .background(Color.DarkGray, RoundedCornerShape(8.dp)),
+                .background(Color.DarkGray.copy(alpha = 1f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
+            // Removed extra spaces from the text for better centering.
             Text(
-                text = "< Week $tempWeek >",
-                fontSize = 34.sp,
-                color = Color.Black,
+                text = "<             Week $tempWeek             >",
+                fontSize = 30.sp,
+                color = Color.White,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -161,52 +158,38 @@ fun CustomButton(
     text: String,
     width: Dp = 200.dp,
     height: Dp = 60.dp,
-    paddingStart: Dp = 16.dp,
-    backgroundColor: Color = Color.White.copy(alpha = 0.8f),
+    backgroundColor: Color = Color.White.copy(alpha = 0.9f),
     textColor: Color = Color.Black,
-    underlineColor: Color = Color.Red,
-    underlineWidth: Dp = 10.dp
+    borderColor: Color = Color.Red  // Renamed from underlineColor for clarity
 ) {
     Button(
         onClick = onClick,
         modifier = Modifier
             .width(width)
-            .height(height),
+            .height(height)
+            .border(
+                width = 2.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(50)
+            ),
         shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(
             containerColor = backgroundColor
         ),
-        contentPadding = PaddingValues(start = paddingStart)
+        contentPadding = PaddingValues() // Removed left padding for centering
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.CenterStart
+            contentAlignment = Alignment.Center // Center the content in the box
         ) {
-            Row {
-                Text(
-                    text = "> ",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        color = textColor
-                    ),
-                    fontSize = 20.sp
-                )
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            color = textColor
-                        ),
-                        fontSize = 20.sp
-                    )
-                    Spacer(
-                        modifier = Modifier
-                            .height(2.dp)
-                            .background(underlineColor)
-                            .width(underlineWidth)
-
-                    )
-                }
-            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = textColor,
+                    fontWeight = FontWeight.Bold
+                ),
+                fontSize = 20.sp
+            )
         }
     }
 }
@@ -252,18 +235,17 @@ fun ColumnOfButtonsAnimated(
             ),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        CustomButton(onClick = onClick1, text = "Monday", width = 280.dp, underlineColor = Color.Blue, underlineWidth = 72.dp)
-        CustomButton(onClick = onClick2, text = "Tuesday", width = 250.dp, underlineColor = Color.Red, underlineWidth = 79.dp)
-        CustomButton(onClick = onClick3, text = "Wednesday", width = 220.dp, underlineColor = Color.Green, underlineWidth = 105.dp)
-        CustomButton(onClick = onClick4, text = "Thursday", width = 200.dp, underlineColor = Color.Blue, underlineWidth = 88.dp)
-        CustomButton(onClick = onClick5, text = "Friday", width = 220.dp, underlineColor = Color.Red, underlineWidth = 58 .dp)
-        CustomButton(onClick = onClick6, text = "Saturday", width = 250.dp, underlineColor = Color.Blue, underlineWidth = 85.dp)
-        CustomButton(onClick = onClick7, text = "Sunday", width = 280.dp, underlineColor = Color.Yellow, underlineWidth = 72.dp)
+        CustomButton(onClick = onClick1, text = "Monday", width = 250.dp, borderColor = Color.Blue)
+        CustomButton(onClick = onClick2, text = "Tuesday", width = 250.dp, borderColor = Color.Red)
+        CustomButton(onClick = onClick3, text = "Wednesday", width = 250.dp, borderColor = Color.Green)
+        CustomButton(onClick = onClick4, text = "Thursday", width = 250.dp, borderColor = Color.Blue)
+        CustomButton(onClick = onClick5, text = "Friday", width = 250.dp, borderColor = Color.Red)
+        CustomButton(onClick = onClick6, text = "Saturday", width = 250.dp, borderColor = Color.Blue)
+        CustomButton(onClick = onClick7, text = "Sunday", width = 250.dp, borderColor = Color.Green)
     }
 }
 
 fun onButtonClick(buttonNumber: Int) {
     println("Button $buttonNumber clicked!")
 }
-
 

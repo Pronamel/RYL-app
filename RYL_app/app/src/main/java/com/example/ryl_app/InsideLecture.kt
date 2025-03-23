@@ -74,6 +74,9 @@ fun InsideALectureScreen(
     }
     println(lectureDirectory)
 
+    val cleanedName = removeafter__(name)
+
+
     // File for merged recording.
     val mergedOutputFile = File(lectureDirectory, "merged_recording.m4a")
 
@@ -148,15 +151,15 @@ fun InsideALectureScreen(
         Column(modifier = Modifier.padding(top = 60.dp)) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.8f)
+                    .fillMaxWidth(0.85f)
                     .border(6.dp, Color.Blue, RoundedCornerShape(12.dp))
                     .background(Color.White, RoundedCornerShape(12.dp))
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "$name $day $week $updatedModuleName",
-                    fontSize = 28.sp,
+                    text = cleanedName,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
@@ -215,7 +218,7 @@ fun InsideALectureScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Days",
+                    text = "Back",
                     color = Color.Black,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
@@ -551,4 +554,12 @@ fun processModuleName(moduleName: String): Pair<Boolean, String> {
         'Z' -> Pair(false, moduleName.substring(1))
         else -> Pair(false, moduleName)
     }
+}
+
+fun removeafter__(input: String): String {
+    // This regex matches optional whitespace,
+    // then exactly two underscores, optional whitespace,
+    // then a time range in the format HH:MM - HH:MM at the end of the string.
+    val regex = Regex("""\s*_{2}\s*\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$""")
+    return input.replace(regex, "")
 }
