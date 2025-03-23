@@ -324,3 +324,53 @@ fun String.toMinutes(): Int {
 
 
 
+
+fun deleteModuleByName(moduleName: String): Boolean {
+    val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
+    val moduleFolder = File(modulesDirectory, moduleName)
+
+    if (moduleFolder.exists() && moduleFolder.isDirectory) {
+        // Recursively delete the module directory
+        val deleted = moduleFolder.deleteRecursively()
+        if (deleted) {
+            println("Module '$moduleName' deleted successfully.")
+        } else {
+            println("Failed to delete module '$moduleName'.")
+        }
+        return deleted
+    } else {
+        println("Module '$moduleName' does not exist.")
+        return false
+    }
+}
+
+fun deleteLectureByName(moduleName: String, weekNumber: String, dayName: String, lectureName: String): Boolean {
+    val modulesDirectory = File("/data/data/com.example.ryl_app/files/RYL_Directory/Modules")
+    val lectureFolder = File(modulesDirectory, "$moduleName/week$weekNumber/$dayName/$lectureName")
+
+    if (!lectureFolder.exists() || !lectureFolder.isDirectory) {
+        println("Lecture '$lectureName' does not exist at path: ${lectureFolder.absolutePath}")
+        return false
+    }
+
+    println("Attempting to delete lecture folder at: ${lectureFolder.absolutePath}")
+
+    // Log contents before deletion
+    lectureFolder.walkTopDown().forEach { file ->
+        println("Found in folder before deletion: ${file.absolutePath}")
+    }
+
+    val deleted = lectureFolder.deleteRecursively()
+
+    // Double-check that it's gone
+    val stillExists = lectureFolder.exists()
+
+    if (deleted && !stillExists) {
+        println("Lecture '$lectureName' deleted successfully.")
+        return true
+    } else {
+        println("Failed to delete lecture '$lectureName'. Still exists: $stillExists")
+        return false
+    }
+}
+

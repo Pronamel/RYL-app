@@ -21,6 +21,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.ui.platform.LocalLifecycleOwner
 
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @Composable
@@ -34,12 +38,26 @@ fun InsideADayScreen(
     ToLectureBuilder: (week: Int, name: String, moduleName: String, day: String) -> Unit,
     // For navigating directly to a lecture
     ToLecture: (name: String, week: Int, moduleName: String, day: String) -> Unit
-)
- {
+) {
+    // Use a mutable state for the lecture folder names
+    val lectures = remember { mutableStateOf(getLecturesInDay(moduleName, week.toString(), day).toList()) }
+    val processedNames = processFolderNames(lectures.value)
 
+    // Refresh the lecture list every time the screen resumes
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                lectures.value = getLecturesInDay(moduleName, week.toString(), day).toList()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
-
-
+    // Variables for header sizing (header remains as-is)
     var weekTextWidth by remember { mutableStateOf(0f) }
     var dayTextWidth by remember { mutableStateOf(0f) }
     val fontSize = 25.sp
@@ -47,15 +65,13 @@ fun InsideADayScreen(
 
     var capturedWeek by remember { mutableStateOf("") }
 
-    val folderNames by remember { mutableStateOf(getLecturesInDay(moduleName, week.toString(), day).toList()) }
-    val processedNames = processFolderNames(folderNames)
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(color = Color.DarkGray),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Header with Week and Day
         Column(
             modifier = Modifier
                 .padding(top = 80.dp)
@@ -117,9 +133,9 @@ fun InsideADayScreen(
             }
         }
 
-
         capturedWeek = "$week"
 
+        // LazyColumn displaying lectures
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -133,19 +149,17 @@ fun InsideADayScreen(
                     text2 = text2,
                     onClick = {
                         Log.d("InsideADayScreen", "Clicked CustomRectangleButton with week: $week")
-                        ToLecture(day, week,text1 + "__" + text2, "Z" + moduleName)
+                        ToLecture(day, week, text1 + "__" + text2, "Z" + moduleName)
                     }
                 )
-
                 Spacer(modifier = Modifier.height(20.dp))
             }
-
             item {
                 AddLectureButton(onClick = { ToLectureBuilder(week, "nothingyet", moduleName, day) })
             }
         }
 
-
+        // Bottom: Back Button
         Column(
             modifier = Modifier
                 .padding(bottom = 25.dp)
@@ -169,6 +183,7 @@ fun InsideADayScreen(
         }
     }
 }
+
 
 @Composable
 fun CustomRectangleButton(

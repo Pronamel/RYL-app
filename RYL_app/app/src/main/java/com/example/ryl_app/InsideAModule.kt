@@ -1,8 +1,10 @@
 package com.example.ryl_app
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,14 +15,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 @Composable
 fun InsideAModuleScreen(
@@ -33,17 +35,26 @@ fun InsideAModuleScreen(
     var currentWeek by remember { mutableStateOf(1) }
     val maxWeeks = duration
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+
     Column(
         modifier = Modifier
             .background(Color.DarkGray)
             .fillMaxSize()
     ) {
-        // Modules button
-        Column(modifier = Modifier.padding(top = 60.dp)) {
+        // Top bar with Back button on the left and Skull image on the right
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 60.dp)
+        ) {
+            // Back button (unchanged)
             Button(
                 onClick = { BackToHome() },
                 modifier = Modifier
                     .size(170.dp, 60.dp)
+                    .align(Alignment.CenterStart)
                     .padding(start = 30.dp)
                     .border(4.dp, Color.Black, RoundedCornerShape(12.dp)),
                 shape = RoundedCornerShape(12.dp),
@@ -58,6 +69,31 @@ fun InsideAModuleScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+
+            // Delete Button on the top right
+            Button(
+                onClick = {
+                    showDeleteDialog = true // Show dialog when clicked
+                },
+                modifier = Modifier
+                    .size(170.dp, 60.dp)
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 30.dp)
+                    .border(4.dp, Color.Black, RoundedCornerShape(12.dp)),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF9800) // Orange as discussed
+                )
+            ) {
+                Text(
+                    text = "Delete",
+                    color = Color.Black,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 24.sp),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -70,25 +106,58 @@ fun InsideAModuleScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             ColumnOfButtonsAnimated(
-                weekNumber = currentWeek,  // Pass the currentWeek value here
+                weekNumber = currentWeek,
                 onClick1 = { NavigateToDay(duration, currentWeek, "Monday", path) },
                 onClick2 = { NavigateToDay(duration, currentWeek, "Tuesday", path) },
                 onClick3 = { NavigateToDay(duration, currentWeek, "Wednesday", path) },
                 onClick4 = { NavigateToDay(duration, currentWeek, "Thursday", path) },
                 onClick5 = { NavigateToDay(duration, currentWeek, "Friday", path) },
-                onClick6 = { NavigateToDay(duration, currentWeek, "Sunday", path) },
-                onClick7 = { NavigateToDay(duration, currentWeek, "Saturday", path) },
+                onClick6 = { NavigateToDay(duration, currentWeek, "Saturday", path) },
+                onClick7 = { NavigateToDay(duration, currentWeek, "Sunday", path) },
             )
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Swipeable Week Selector - centered and with simplified text
+        // Swipeable Week Selector
         SwipeableWeekSelector(
             currentWeek = currentWeek,
             maxWeeks = maxWeeks,
             onWeekChange = { week -> currentWeek = week }
         )
+
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            deleteModuleByName(path)
+                            println("DELETE CONFIRMED for module: $path")
+                            // You can also navigate back or refresh
+                            BackToHome()
+                        }
+                    ) {
+                        Text("Yes", color = Color.Red, fontSize = 18.sp)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDeleteDialog = false }
+                    ) {
+                        Text("No", color = Color.Gray, fontSize = 18.sp)
+                    }
+                },
+                title = { Text("Delete Module", fontWeight = FontWeight.Bold) },
+                text = { Text("Are you sure you want to delete this module?\nThis action cannot be undone.") },
+                containerColor = Color.White,
+                titleContentColor = Color.Black,
+                textContentColor = Color.DarkGray
+            )
+        }
+
     }
 }
 
@@ -141,7 +210,6 @@ fun SwipeableWeekSelector(
                 .background(Color.DarkGray.copy(alpha = 1f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
-            // Removed extra spaces from the text for better centering.
             Text(
                 text = "<             Week $tempWeek             >",
                 fontSize = 30.sp,
@@ -160,7 +228,7 @@ fun CustomButton(
     height: Dp = 60.dp,
     backgroundColor: Color = Color.White.copy(alpha = 0.9f),
     textColor: Color = Color.Black,
-    borderColor: Color = Color.Red  // Renamed from underlineColor for clarity
+    borderColor: Color = Color.Red
 ) {
     Button(
         onClick = onClick,
@@ -176,11 +244,11 @@ fun CustomButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = backgroundColor
         ),
-        contentPadding = PaddingValues() // Removed left padding for centering
+        contentPadding = PaddingValues()
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center // Center the content in the box
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = text,
@@ -205,11 +273,9 @@ fun ColumnOfButtonsAnimated(
     onClick6: () -> Unit,
     onClick7: () -> Unit
 ) {
-    // Define the animations for scale and alpha
     val scale = remember { Animatable(0.8f) }
     val alpha = remember { Animatable(0f) }
 
-    // Animate the buttons when the week changes
     LaunchedEffect(weekNumber) {
         scale.snapTo(0.8f)
         alpha.snapTo(0f)
@@ -224,7 +290,6 @@ fun ColumnOfButtonsAnimated(
         )
     }
 
-    // Apply the animation to the column of buttons
     Column(
         modifier = Modifier
             .padding(8.dp)
@@ -244,8 +309,3 @@ fun ColumnOfButtonsAnimated(
         CustomButton(onClick = onClick7, text = "Sunday", width = 250.dp, borderColor = Color.Green)
     }
 }
-
-fun onButtonClick(buttonNumber: Int) {
-    println("Button $buttonNumber clicked!")
-}
-

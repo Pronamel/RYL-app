@@ -10,6 +10,8 @@ import android.media.MediaRecorder
 import android.media.MediaFormat
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +49,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 // InsideALectureScreen composable that prepares the merged file and updates the state flag.
@@ -78,9 +82,29 @@ fun InsideALectureScreen(
         lectureDirectory.mkdirs()
     }
 
+    var isFileReady by remember { mutableStateOf(false) }
+
+
+    // Delete dialog state
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     val cleanedName = removeafter__(name)
     // File for merged recording.
     val mergedOutputFile = File(lectureDirectory, "$cleanedName.m4a")
+
+    KeepScreenOn(enabled = isRecording)
+
+
+
+    // On initial composition, if a merged file already exists, update the flag.
+    LaunchedEffect(Unit) {
+        if (mergedOutputFile.exists()) {
+            // If a merged file exists, we consider it ready for emailing.
+            // (You might also want to check that it's valid.)
+            // This enables the EmailButton on first entry.
+            isFileReady = true
+        }
+    }
 
     // Load existing segment files.
     LaunchedEffect(lectureDirectory) {
@@ -126,8 +150,17 @@ fun InsideALectureScreen(
         // Encrypt the recorded segment after recording is complete.
         encryptFile(segmentFile)
         recordedSegments.add(segmentFile)
+
+        // Immediately trigger merging/updating of the merged file.
+        CoroutineScope(Dispatchers.IO).launch {
+            val success = prepareMergedFileForEmail(recordedSegments, mergedOutputFile)
+            withContext(Dispatchers.Main) {
+                isFileReady = success
+            }
+        }
     }
 
+    // Keep track of recording time.
     LaunchedEffect(isRecording) {
         while (isRecording) {
             delay(1000)
@@ -143,14 +176,10 @@ fun InsideALectureScreen(
     }
 
     // State flag to indicate if the merged file is ready.
-    var isFileReady by remember { mutableStateOf(false) }
-    // Launch the file preparation once recorded segments are available.
-    LaunchedEffect(recordedSegments) {
-        if (recordedSegments.isNotEmpty()) {
-            isFileReady = prepareMergedFileForEmail(recordedSegments, mergedOutputFile)
-        }
-    }
+    //var isFileReady by remember { mutableStateOf(false) }
+    // (The LaunchedEffect above already sets this if a merged file exists or after stopping recording)
 
+    // UI – (Your UI layout remains unchanged)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -159,7 +188,7 @@ fun InsideALectureScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Header.
+        // Header
         Column(modifier = Modifier.padding(top = 60.dp)) {
             Box(
                 modifier = Modifier
@@ -177,7 +206,7 @@ fun InsideALectureScreen(
                 )
             }
         }
-        // Elapsed time.
+        // Elapsed time
         Text(
             text = if (isRecording) formatRecordingTime(recordingTimeMs) else "00:00",
             fontSize = 50.sp,
@@ -185,7 +214,8 @@ fun InsideALectureScreen(
             modifier = Modifier.padding(30.dp)
         )
         Spacer(modifier = Modifier.weight(0.5f))
-        // Record Button.
+
+        // Record Button
         Column(modifier = Modifier.padding(bottom = 25.dp)) {
             Box(
                 modifier = Modifier
@@ -204,11 +234,12 @@ fun InsideALectureScreen(
                 )
             }
         }
-        // Vertical stack for Listen and Email buttons.
+
+        // Listen + Email buttons
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(25.dp)
         ) {
             AudioPlaybackButton(
                 recordedSegments = recordedSegments,
@@ -222,27 +253,100 @@ fun InsideALectureScreen(
             )
         }
         Spacer(modifier = Modifier.weight(1f))
-        // Days Button.
-        Column(modifier = Modifier.padding(bottom = 30.dp)) {
+
+        // Bottom row: Back & Delete
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 15.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            // Back Button
             Box(
                 modifier = Modifier
-                    .width(130.dp)
-                    .height(90.dp)
-                    .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
-                    .background(Color(0xFF800080), RoundedCornerShape(12.dp))
+                    .width(170.dp)
+                    .height(60.dp)
+                    .border(4.dp, Color.Black, RoundedCornerShape(12.dp))
+                    .background(Color.Red.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     .clickable { if (isL) BackToLectureBuilder() else BackToInsideADay() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "Back",
                     color = Color.Black,
-                    fontSize = 24.sp,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Delete Button
+            Box(
+                modifier = Modifier
+                    .width(170.dp)
+                    .height(60.dp)
+                    .border(4.dp, Color.Black, RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFF9800), RoundedCornerShape(12.dp))
+                    .clickable { showDeleteDialog = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Delete",
+                    color = Color.Black,
+                    fontSize = 23.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
     }
+
+    // Delete confirmation dialog (unchanged)
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+
+                        // Stop recording if active
+                        if (isRecording) {
+                            stopRecording()
+                        }
+
+                        // Navigate back immediately
+                        if (isL) BackToLectureBuilder() else BackToInsideADay()
+
+                        // Then, in a coroutine, wait a moment and delete the folder
+                        CoroutineScope(Dispatchers.IO).launch {
+                            delay(500L) // wait for 500ms to ensure all resources are released
+                            val deleted = lectureDirectory.deleteRecursively()
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    if (deleted) "Lecture deleted." else "Failed to delete lecture.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                ) {
+                    Text("Yes", color = Color.Red, fontSize = 18.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("No", color = Color.Gray, fontSize = 18.sp)
+                }
+            },
+            title = { Text("Delete Lecture", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to delete this lecture?\nThis action cannot be undone.") },
+            containerColor = Color.White,
+            titleContentColor = Color.Black,
+            textContentColor = Color.DarkGray
+        )
+    }
 }
+
 
 
 @RequiresApi(Build.VERSION_CODES.N)
@@ -288,8 +392,26 @@ fun AudioPlaybackButton(
 // EmailButton composable that uses the state flag to enable/disable itself.
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
-fun EmailButton(mergedOutputFile: File, cleanedName: String, isFileReady: Boolean) {
+fun EmailButton(
+    mergedOutputFile: File,
+    cleanedName: String,
+    isFileReady: Boolean
+) {
     val context = LocalContext.current
+    // Create an ActivityResultLauncher to listen for when the email intent finishes.
+    val emailLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // When the email app is closed, wait briefly and then delete the temporary decrypted file.
+        CoroutineScope(Dispatchers.IO).launch {
+            delay(500L) // Adjust delay as needed
+            val tempDecryptedFile = File(mergedOutputFile.parent, "$cleanedName-.m4a")
+            if (tempDecryptedFile.exists()) {
+                tempDecryptedFile.delete()
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .width(180.dp)
@@ -300,7 +422,22 @@ fun EmailButton(mergedOutputFile: File, cleanedName: String, isFileReady: Boolea
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable(enabled = isFileReady) {
-                sendEmail(context, mergedOutputFile, cleanedName)
+                // Decrypt the merged file into a temporary file.
+                val tempDecryptedFile = File(mergedOutputFile.parent, "$cleanedName-.m4a")
+                decryptFile(mergedOutputFile, tempDecryptedFile)
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    tempDecryptedFile
+                )
+                val emailIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "audio/m4a"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "Combined Audio Recording")
+                    putExtra(Intent.EXTRA_TEXT, "Please find the attached audio recording.")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                emailLauncher.launch(Intent.createChooser(emailIntent, "Send email using:"))
             },
         contentAlignment = Alignment.Center
     ) {
@@ -312,6 +449,7 @@ fun EmailButton(mergedOutputFile: File, cleanedName: String, isFileReady: Boolea
         )
     }
 }
+
 
 
 @RequiresApi(Build.VERSION_CODES.N)
@@ -331,6 +469,8 @@ fun AudioPlayerDialog(
     var isDragging by remember { mutableStateOf(false) }
     // State variable to hold our temporary dummy file for playback.
     var dummyAudioFile by remember { mutableStateOf<File?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
 
     fun formatMs(ms: Int): String {
         val totalSeconds = ms / 1000
@@ -430,7 +570,7 @@ fun AudioPlayerDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .height(350.dp)
+                .height(250.dp)
                 .background(Color.DarkGray.copy(alpha = 0.95f), RoundedCornerShape(16.dp))
                 .padding(16.dp)
         ) {
@@ -524,11 +664,10 @@ fun AudioPlayerDialog(
 }
 
 
-// Updated sendEmail function that decrypts to a temporary file and sends that file.
 @RequiresApi(Build.VERSION_CODES.N)
 fun sendEmail(context: Context, file: File, cleanedName: String) {
     // Create a temporary file for the decrypted merged file using cleanedName.
-    val tempDecryptedFile = File(file.parent, "$cleanedName-temp.m4a")
+    val tempDecryptedFile = File(file.parent, "$cleanedName-.m4a")
     // Decrypt the encrypted merged file into the temporary file.
     decryptFile(file, tempDecryptedFile)
 
@@ -547,14 +686,15 @@ fun sendEmail(context: Context, file: File, cleanedName: String) {
     }
     context.startActivity(Intent.createChooser(emailIntent, "Send email using:"))
 
-    // Schedule deletion of the temporary file after a delay (e.g., 1 minute).
+    // Schedule deletion of the temporary file after a shorter delay (5 seconds)
     CoroutineScope(Dispatchers.IO).launch {
-        delay(60000L) // 1 minute delay (60000 milliseconds)
+        delay(5000L) // 5 seconds delay
         if (tempDecryptedFile.exists()) {
             tempDecryptedFile.delete()
         }
     }
 }
+
 
 @RequiresApi(Build.VERSION_CODES.N)
 fun mergeSegments(segmentFiles: List<File>, outputFile: File) {
@@ -648,4 +788,23 @@ suspend fun prepareMergedFileForEmail(
         return true
     }
     return false
+}
+
+
+@Composable
+fun KeepScreenOn(enabled: Boolean) {
+    val context = LocalContext.current
+
+    DisposableEffect(enabled) {
+        // Cast context to Activity to access window flags.
+        val activity = context as? android.app.Activity
+        if (enabled) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 }

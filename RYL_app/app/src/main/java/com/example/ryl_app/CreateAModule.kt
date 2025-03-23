@@ -291,7 +291,18 @@ fun ColorPickerBottomSheet(
                         .align(Alignment.CenterHorizontally)
                 )
 
+                // First nine are color blind friendly colors, then an additional ten
                 val colors = listOf(
+                    "Orange" to Color(0xFFE69F00),
+                    "Sky Blue" to Color(0xFF56B4E9),
+                    "Bluish Green" to Color(0xFF009E73),
+                    "Yellow" to Color(0xFFF0E442),
+                    "Blue" to Color(0xFF0072B2),
+                    "Vermillion" to Color(0xFFD55E00),
+                    "Light Pink" to Color(0xFFCC79A7),
+                    "Gray" to Color(0xFF999999),
+                    "Teal" to Color(0xFF008080),
+                    // Additional 10 colors
                     "Red" to Color.Red,
                     "Green" to Color.Green,
                     "Blue" to Color.Blue,
@@ -301,7 +312,8 @@ fun ColorPickerBottomSheet(
                     "Orange" to Color(0xFFFFA500),
                     "Purple" to Color(0xFF800080),
                     "Pink" to Color(0xFFFFC0CB),
-                    "Teal" to Color(0xFF008080)
+                    "Brown" to Color(0xFF8B4513),
+                    "Lime" to Color(0xFF32CD32)
                 )
 
                 LazyVerticalGrid(
@@ -337,6 +349,7 @@ fun ColorPickerBottomSheet(
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
