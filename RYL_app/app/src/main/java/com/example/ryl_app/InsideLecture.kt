@@ -40,7 +40,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.ByteBuffer
+import com.example.ryl_app.encryptFile
+import com.example.ryl_app.decryptFile
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
+
+// InsideALectureScreen composable that prepares the merged file and updates the state flag.
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
 fun InsideALectureScreen(
@@ -51,9 +59,7 @@ fun InsideALectureScreen(
     BackToLectureBuilder: () -> Unit,
     BackToInsideADay: () -> Unit,
 ) {
-    println("InsideALectureScreen Week received: $week")
     val (isL, updatedModuleName) = processModuleName(moduleName)
-    println("isL: $isL, updatedModuleName: $updatedModuleName")
     val context = LocalContext.current
 
     // Recording states.
@@ -67,18 +73,14 @@ fun InsideALectureScreen(
 
     // Build folder structure.
     val baseDirectory = File(context.filesDir, "RYL_Directory/Modules")
-    println(baseDirectory)
     val lectureDirectory = File(baseDirectory, "$updatedModuleName/week$week/$day/$name")
     if (!lectureDirectory.exists()) {
         lectureDirectory.mkdirs()
     }
-    println(lectureDirectory)
 
     val cleanedName = removeafter__(name)
-
-
     // File for merged recording.
-    val mergedOutputFile = File(lectureDirectory, "merged_recording.m4a")
+    val mergedOutputFile = File(lectureDirectory, "$cleanedName.m4a")
 
     // Load existing segment files.
     LaunchedEffect(lectureDirectory) {
@@ -103,9 +105,9 @@ fun InsideALectureScreen(
         val segmentFile = getNextSegmentFile()
         recorder = MediaRecorder().apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4) // MP4/M4A container
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile(segmentFile.absolutePath)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)    // AAC encoding
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             prepare()
             start()
         }
@@ -121,10 +123,11 @@ fun InsideALectureScreen(
         recorder = null
         isRecording = false
         val segmentFile = File(lectureDirectory, "recording_${recordingIndex - 1}.m4a")
+        // Encrypt the recorded segment after recording is complete.
+        encryptFile(segmentFile)
         recordedSegments.add(segmentFile)
     }
 
-    // Update elapsed time.
     LaunchedEffect(isRecording) {
         while (isRecording) {
             delay(1000)
@@ -137,6 +140,15 @@ fun InsideALectureScreen(
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
         return String.format("%02d:%02d", minutes, seconds)
+    }
+
+    // State flag to indicate if the merged file is ready.
+    var isFileReady by remember { mutableStateOf(false) }
+    // Launch the file preparation once recorded segments are available.
+    LaunchedEffect(recordedSegments) {
+        if (recordedSegments.isNotEmpty()) {
+            isFileReady = prepareMergedFileForEmail(recordedSegments, mergedOutputFile)
+        }
     }
 
     Column(
@@ -203,7 +215,11 @@ fun InsideALectureScreen(
                 mergedOutputFile = mergedOutputFile,
                 isRecording = isRecording
             )
-            EmailButton(mergedOutputFile = mergedOutputFile)
+            EmailButton(
+                mergedOutputFile = mergedOutputFile,
+                cleanedName = cleanedName,
+                isFileReady = isFileReady
+            )
         }
         Spacer(modifier = Modifier.weight(1f))
         // Days Button.
@@ -227,6 +243,7 @@ fun InsideALectureScreen(
         }
     }
 }
+
 
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
@@ -268,18 +285,23 @@ fun AudioPlaybackButton(
     }
 }
 
+// EmailButton composable that uses the state flag to enable/disable itself.
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
-fun EmailButton(mergedOutputFile: File) {
+fun EmailButton(mergedOutputFile: File, cleanedName: String, isFileReady: Boolean) {
     val context = LocalContext.current
-    // Styled like the other buttons.
     Box(
         modifier = Modifier
             .width(180.dp)
             .height(125.dp)
             .border(3.dp, Color.Black, RoundedCornerShape(12.dp))
-            .background(Color(0xFFADD8E6), RoundedCornerShape(12.dp))
-            .clickable { sendEmail(context, mergedOutputFile) },
+            .background(
+                color = if (isFileReady) Color(0xFFADD8E6) else Color.Gray,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(enabled = isFileReady) {
+                sendEmail(context, mergedOutputFile, cleanedName)
+            },
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -290,6 +312,7 @@ fun EmailButton(mergedOutputFile: File) {
         )
     }
 }
+
 
 @RequiresApi(Build.VERSION_CODES.N)
 @Composable
@@ -306,6 +329,8 @@ fun AudioPlayerDialog(
     var currentPositionMs by remember { mutableStateOf(0f) }
     var durationMs by remember { mutableStateOf(1f) } // default to avoid divide-by-zero
     var isDragging by remember { mutableStateOf(false) }
+    // State variable to hold our temporary dummy file for playback.
+    var dummyAudioFile by remember { mutableStateOf<File?>(null) }
 
     fun formatMs(ms: Int): String {
         val totalSeconds = ms / 1000
@@ -318,9 +343,25 @@ fun AudioPlayerDialog(
         if (recordedSegments.isNotEmpty()) {
             isMerging = true
             coroutineScope.launch {
-                mergeSegments(recordedSegments, mergedOutputFile)
+                // Decrypt each recorded segment into a temporary file.
+                val decryptedSegments = recordedSegments.map { encryptedFile ->
+                    File(encryptedFile.parent, "decrypted_${encryptedFile.name}").also { tempFile ->
+                        decryptFile(encryptedFile, tempFile)
+                    }
+                }
+                // Merge the decrypted segments into the mergedOutputFile.
+                mergeSegments(decryptedSegments, mergedOutputFile)
+                // Optionally, delete the temporary decrypted segment files.
+                decryptedSegments.forEach { it.delete() }
+                // Now encrypt the merged file.
+                encryptFile(mergedOutputFile)
                 isMerging = false
-                onReady(mergedOutputFile)
+
+                // For playback, decrypt the encrypted merged file into a temporary dummy file.
+                val tempDummy = File(mergedOutputFile.parent, "dummy_decrypted.m4a")
+                decryptFile(mergedOutputFile, tempDummy)
+                dummyAudioFile = tempDummy  // store the dummy file so we can delete it later
+                onReady(tempDummy)
             }
         } else {
             Toast.makeText(context, "No recordings available!", Toast.LENGTH_SHORT).show()
@@ -329,6 +370,7 @@ fun AudioPlayerDialog(
 
     LaunchedEffect(Unit) {
         prepareAudio { audioFile ->
+            // Use the temporary dummy file as the data source.
             val fis = java.io.FileInputStream(audioFile)
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(fis.fd)
@@ -379,6 +421,9 @@ fun AudioPlayerDialog(
         onDismissRequest = {
             mediaPlayer?.release()
             mediaPlayer = null
+            // Delete the temporary dummy file after playback.
+            dummyAudioFile?.delete()
+            dummyAudioFile = null
             onDismiss()
         }
     ) {
@@ -478,13 +523,21 @@ fun AudioPlayerDialog(
     }
 }
 
+
+// Updated sendEmail function that decrypts to a temporary file and sends that file.
 @RequiresApi(Build.VERSION_CODES.N)
-fun sendEmail(context: Context, file: File) {
+fun sendEmail(context: Context, file: File, cleanedName: String) {
+    // Create a temporary file for the decrypted merged file using cleanedName.
+    val tempDecryptedFile = File(file.parent, "$cleanedName-temp.m4a")
+    // Decrypt the encrypted merged file into the temporary file.
+    decryptFile(file, tempDecryptedFile)
+
     val uri = FileProvider.getUriForFile(
         context,
         "${context.packageName}.provider",
-        file
+        tempDecryptedFile
     )
+
     val emailIntent = Intent(Intent.ACTION_SEND).apply {
         type = "audio/m4a"
         putExtra(Intent.EXTRA_STREAM, uri)
@@ -493,6 +546,14 @@ fun sendEmail(context: Context, file: File) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(emailIntent, "Send email using:"))
+
+    // Schedule deletion of the temporary file after a delay (e.g., 1 minute).
+    CoroutineScope(Dispatchers.IO).launch {
+        delay(60000L) // 1 minute delay (60000 milliseconds)
+        if (tempDecryptedFile.exists()) {
+            tempDecryptedFile.delete()
+        }
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.N)
@@ -562,4 +623,29 @@ fun removeafter__(input: String): String {
     // then a time range in the format HH:MM - HH:MM at the end of the string.
     val regex = Regex("""\s*_{2}\s*\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$""")
     return input.replace(regex, "")
+}
+
+
+// Suspend function to prepare the merged file (merging, cleaning up, and encryption)
+@RequiresApi(Build.VERSION_CODES.N)
+suspend fun prepareMergedFileForEmail(
+    recordedSegments: List<File>,
+    mergedOutputFile: File
+): Boolean {
+    if (recordedSegments.isNotEmpty()) {
+        // Decrypt each recorded segment into a temporary file.
+        val decryptedSegments = recordedSegments.map { encryptedFile ->
+            File(encryptedFile.parent, "decrypted_${encryptedFile.name}").also { tempFile ->
+                decryptFile(encryptedFile, tempFile)
+            }
+        }
+        // Merge the decrypted segments into mergedOutputFile.
+        mergeSegments(decryptedSegments, mergedOutputFile)
+        // Delete the temporary decrypted segment files.
+        decryptedSegments.forEach { it.delete() }
+        // Encrypt the merged file so it is stored securely.
+        encryptFile(mergedOutputFile)
+        return true
+    }
+    return false
 }
