@@ -97,13 +97,21 @@ fun InsideAModuleScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+
+        Text(
+            text = "Module",
+            color = Color.White,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 35.sp),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 30.dp)
+        )
+
 
         // Days buttons section; centered horizontally.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 70.dp),
+                .padding(top = 30.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Animated column of buttons for each day of the week.
@@ -172,13 +180,11 @@ fun SwipeableWeekSelector(
     var tempWeek by remember { mutableStateOf(currentWeek) }
     val swipeThreshold = 50f
 
-    // Animate the horizontal offset for smooth swipe effects.
     val offsetX = animateIntOffsetAsState(
         targetValue = IntOffset(x = dragOffset.roundToInt(), y = 0),
         animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing)
     )
 
-    // Function to handle the swipe gesture and change the week accordingly.
     fun handleSwipe() {
         if (dragOffset.absoluteValue >= swipeThreshold) {
             val weekChange = if (dragOffset < 0) +1 else -1
@@ -194,15 +200,19 @@ fun SwipeableWeekSelector(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 32.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 27.dp)
             .background(Color.Gray.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
             .height(100.dp)
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { _, dragAmount -> dragOffset += dragAmount },
-                    onDragEnd = { handleSwipe() }
-                )
-            },
+            // Apply swipe gesture only if there's more than one week.
+            .then(
+                if (maxWeeks > 1)
+                    Modifier.pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { _, dragAmount -> dragOffset += dragAmount },
+                            onDragEnd = { handleSwipe() }
+                        )
+                    } else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -210,7 +220,7 @@ fun SwipeableWeekSelector(
                 .offset { offsetX.value }
                 .fillMaxWidth()
                 .height(100.dp)
-                .background(Color.DarkGray.copy(alpha = 1f), RoundedCornerShape(8.dp)),
+                .background(Color.DarkGray, RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -222,6 +232,7 @@ fun SwipeableWeekSelector(
         }
     }
 }
+
 
 // CustomButton is a reusable button with customizable size, colors, and border.
 @Composable

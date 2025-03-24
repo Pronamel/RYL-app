@@ -140,6 +140,14 @@ fun InsideADayScreen(
             }
         }
 
+        Text(
+            text = "Day",
+            color = Color.White,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 35.sp),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 30.dp)
+        )
+
         capturedWeek = "$week"  // Store the week value as a string.
 
         // Main Content: LazyColumn displaying the list of lectures.
@@ -147,7 +155,7 @@ fun InsideADayScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(top = 70.dp, bottom = 35.dp),
+                .padding(top = 40.dp, bottom = 35.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // For each processed lecture name, display a custom rectangle button.
